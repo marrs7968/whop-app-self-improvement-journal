@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WeekHeader } from '@/components/WeekHeader';
 import { DailyRentSection } from '@/components/DailyRentSection';
@@ -9,7 +9,7 @@ import { WeeklyReflectionSection } from '@/components/WeeklyReflectionSection';
 import { getCurrentWeekStart } from '@/lib/dates';
 import { canSubmitSection } from '@/lib/sections';
 
-export default function JournalPage() {
+function JournalPageContent() {
   const searchParams = useSearchParams();
   const weekStartISO = searchParams.get('w') || getCurrentWeekStart();
   
@@ -142,3 +142,14 @@ export default function JournalPage() {
   );
 }
 
+export default function JournalPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    }>
+      <JournalPageContent />
+    </Suspense>
+  );
+}
