@@ -35,26 +35,44 @@ function normalizeChannels(raw: any): Channel[] {
     ? raw.chat_channels
     : [];
 
-  return channelNodes
-    .map((channel: any) => {
-      const id =
-        channel?.experience?.id ??
-        channel?.experience_id ??
-        channel?.id ??
-        channel?.chat_channel_id;
-      const name =
-        channel?.name ??
-        channel?.title ??
-        channel?.display_name ??
-        channel?.experience?.name;
+  const unique = new Map<string, Channel>();
 
-      if (!id || !name) return null;
-      return {
-        id: String(id),
-        name: String(name === 'Chat' && channel?.experience?.id ? `Chat (${String(channel.experience.id).slice(-5)})` : name),
-      };
-    })
-    .filter(Boolean) as Channel[];
+  for (const channel of channelNodes) {
+    const id =
+      channel?.id ??
+      channel?.chat_channel_id ??
+      channel?.channel_id ??
+      channel?.slug ??
+      channel?.experience?.id ??
+      channel?.experience_id;
+
+    const rawName =
+      channel?.name ??
+      channel?.title ??
+      channel?.display_name ??
+      channel?.slug ??
+      channel?.experience?.name;
+
+    if (!id) continue;
+
+    const channelId = String(id);
+    const channelName =
+      rawName && String(rawName).trim()
+        ? String(rawName)
+        : `Channel (${channelId.slice(-5)})`;
+
+    // If the API returns generic "Chat" labels, keep the options distinct.
+    const name =
+      channelName === 'Chat' && channelId
+        ? `Chat (${channelId.slice(-5)})`
+        : channelName;
+
+    if (!unique.has(channelId)) {
+      unique.set(channelId, { id: channelId, name });
+    }
+  }
+
+  return Array.from(unique.values());
 }
 
 export async function listChannels(options: ListChannelsOptions = {}): Promise<Channel[]> {
