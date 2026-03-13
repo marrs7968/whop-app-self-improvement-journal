@@ -11,9 +11,10 @@ interface ChannelSelectorProps {
   value?: string;
   onChange: (channelId: string) => void;
   disabled?: boolean;
+  experienceId?: string;
 }
 
-export function ChannelSelector({ value, onChange, disabled = false }: ChannelSelectorProps) {
+export function ChannelSelector({ value, onChange, disabled = false, experienceId }: ChannelSelectorProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -21,7 +22,10 @@ export function ChannelSelector({ value, onChange, disabled = false }: ChannelSe
   useEffect(() => {
     async function fetchChannels() {
       try {
-        const response = await fetch('/api/channels');
+        const channelUrl = experienceId
+          ? `/api/channels?experienceId=${encodeURIComponent(experienceId)}`
+          : '/api/channels';
+        const response = await fetch(channelUrl);
         if (response.ok) {
           const data = await response.json();
           setChannels(Array.isArray(data) ? data : []);
@@ -38,7 +42,7 @@ export function ChannelSelector({ value, onChange, disabled = false }: ChannelSe
     }
 
     fetchChannels();
-  }, []);
+  }, [experienceId]);
 
   if (loading) {
     return (
@@ -76,6 +80,11 @@ export function ChannelSelector({ value, onChange, disabled = false }: ChannelSe
       </select>
       {loadError && (
         <p className="text-xs text-rose-300 mt-2">{loadError}</p>
+      )}
+      {!loadError && channels.length === 0 && (
+        <p className="text-xs text-emerald-100/65 mt-2">
+          If chats should appear here, ensure your Whop app API key has `chat:read` permission.
+        </p>
       )}
     </div>
   );

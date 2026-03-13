@@ -9,6 +9,7 @@ import { getSectionConfig } from '@/lib/sections';
 interface WeeklyReflectionSectionProps {
   weekStartISO: string;
   userId: string;
+  experienceId?: string;
   draft?: {
     text?: string;
     mediaIds: string[];
@@ -23,6 +24,7 @@ interface WeeklyReflectionSectionProps {
 export function WeeklyReflectionSection({ 
   weekStartISO, 
   userId, 
+  experienceId,
   draft, 
   canSubmit,
   submitDisabledReason,
@@ -80,7 +82,7 @@ export function WeeklyReflectionSection({
       <div className="space-y-4">
         {/* Prompt Template */}
         {promptTemplate && (
-          <div className="bg-zinc-900/70 border border-emerald-400/25 rounded-lg p-4">
+          <div className="bg-emerald-100/10 border border-emerald-300/35 rounded-lg p-4">
             <h4 className="text-sm font-medium text-emerald-100/90 mb-2">Reflection Questions:</h4>
             <div className="text-sm text-emerald-100/65 whitespace-pre-line">
               {promptTemplate}
@@ -109,6 +111,7 @@ export function WeeklyReflectionSection({
 
         {/* Channel Selector */}
         <ChannelSelector
+          experienceId={experienceId}
           value={data.channelId}
           onChange={(channelId) => updateData({ channelId })}
         />

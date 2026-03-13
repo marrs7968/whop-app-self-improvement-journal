@@ -9,6 +9,7 @@ import { getDayName } from '@/lib/dates';
 interface DailyRentSectionProps {
   weekStartISO: string;
   userId: string;
+  experienceId?: string;
   drafts: Array<{
     dayIndex: number;
     text?: string;
@@ -22,6 +23,7 @@ interface DailyRentSectionProps {
 export function DailyRentSection({ 
   weekStartISO, 
   userId, 
+  experienceId,
   drafts, 
   onSaveDraft, 
   onSubmit 
@@ -118,6 +120,7 @@ export function DailyRentSection({
 
             {/* Channel Selector */}
             <ChannelSelector
+              experienceId={experienceId}
               value={dayData[dayIndex]?.channelId || ''}
               onChange={(channelId) => updateDayData(dayIndex, { channelId })}
             />

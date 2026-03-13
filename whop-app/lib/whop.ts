@@ -5,55 +5,83 @@ export interface Channel {
   name: string;
 }
 
-export async function listChannels(): Promise<Channel[]> {
+interface ListChannelsOptions {
+  companyId?: string;
+  experienceId?: string;
+}
+
+function normalizeChannels(raw: any): Channel[] {
+  const channelNodes = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.data)
+    ? raw.data
+    : Array.isArray(raw?.chat_channels)
+    ? raw.chat_channels
+    : [];
+
+  return channelNodes
+    .map((channel: any) => {
+      const id = channel?.id ?? channel?.chat_channel_id ?? channel?.experience_id;
+      const name = channel?.name ?? channel?.title ?? channel?.display_name;
+
+      if (!id || !name) return null;
+      return {
+        id: String(id),
+        name: String(name),
+      };
+    })
+    .filter(Boolean) as Channel[];
+}
+
+export async function listChannels(options: ListChannelsOptions = {}): Promise<Channel[]> {
   try {
-    const companyId = process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
+    const companyId = options.companyId || process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
     const apiKey = process.env.WHOP_API_KEY;
+    const experienceId = options.experienceId;
 
-    if (!companyId || !apiKey) {
-      throw new Error('Missing NEXT_PUBLIC_WHOP_COMPANY_ID or WHOP_API_KEY');
-    }
+    if (companyId && apiKey) {
+      const response = await fetch(
+        `https://api.whop.com/api/v1/chat_channels?company_id=${encodeURIComponent(companyId)}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        }
+      );
 
-    const response = await fetch(
-      `https://api.whop.com/api/v1/chat_channels?company_id=${encodeURIComponent(companyId)}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
+      if (response.ok) {
+        const raw = await response.json();
+        const channels = normalizeChannels(raw);
+        if (channels.length > 0) {
+          return channels;
+        }
+      } else {
+        console.error(`Chat channel request failed with status ${response.status}`);
       }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Chat channel request failed with status ${response.status}`);
     }
 
-    const raw = await response.json();
-    const channelNodes = Array.isArray(raw)
-      ? raw
-      : Array.isArray(raw?.data)
-      ? raw.data
-      : Array.isArray(raw?.chat_channels)
-      ? raw.chat_channels
-      : [];
+    // Fallback: expose the current experience chat as an option.
+    if (experienceId) {
+      try {
+        const experience = await whopSdk.experiences.getExperience({ experienceId });
+        const fallbackName =
+          (experience as any)?.name ||
+          (experience as any)?.title ||
+          'Current Community Chat';
 
-    return channelNodes
-      .map((channel: any) => {
-        const id = channel?.id ?? channel?.chat_channel_id ?? channel?.experience_id;
-        const name = channel?.name ?? channel?.title ?? channel?.display_name;
+        return [{ id: experienceId, name: String(fallbackName) }];
+      } catch (fallbackError) {
+        console.error('Experience fallback failed during channel discovery:', fallbackError);
+      }
+    }
 
-        if (!id || !name) return null;
-        return {
-          id: String(id),
-          name: String(name),
-        };
-      })
-      .filter(Boolean) as Channel[];
+    return [];
   } catch (error) {
     console.error('Error fetching channels:', error);
-    throw new Error('Failed to fetch channels');
+    return [];
   }
 }
 

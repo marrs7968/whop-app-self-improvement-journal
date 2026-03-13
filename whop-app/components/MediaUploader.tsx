@@ -170,10 +170,10 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
       {uploadError && <p className="text-xs text-rose-300 mt-2">{uploadError}</p>}
 
       {(pendingUploads.length > 0 || mediaIds.length > 0) && (
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="mt-4 flex flex-wrap gap-3">
           {pendingUploads.map((pending) => (
-            <div key={pending.localId} className="relative">
-              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+            <div key={pending.localId} className="relative w-20 h-20">
+              <div className="w-20 h-20 bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
                 {pending.previewUrl && pending.type.startsWith('image/') ? (
                   <img src={pending.previewUrl} alt={pending.name} className="w-full h-full object-cover opacity-60" />
                 ) : pending.previewUrl && pending.type.startsWith('video/') ? (
@@ -194,8 +194,8 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
           ))}
 
           {mediaIds.map((mediaId, index) => (
-            <div key={mediaId} className="relative group">
-              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+            <div key={mediaId} className="relative group w-20 h-20">
+              <div className="w-20 h-20 bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
                 {mediaMetaById[mediaId]?.previewUrl && mediaMetaById[mediaId].type.startsWith('image/') ? (
                   <img
                     src={mediaMetaById[mediaId].previewUrl}

@@ -12,6 +12,7 @@ import { canSubmitSection } from '@/lib/sections';
 function JournalPageContent() {
   const searchParams = useSearchParams();
   const weekStartISO = searchParams.get('w') || getCurrentWeekStart();
+  const experienceId = searchParams.get('experienceId') || '';
   
   const [userName, setUserName] = useState('User');
   const [userId, setUserId] = useState('');
@@ -112,6 +113,7 @@ function JournalPageContent() {
           <DailyRentSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             drafts={dailyRentDrafts}
             onSaveDraft={(dayIndex, data) => handleSaveDraft('daily-rent', dayIndex, data)}
             onSubmit={(dayIndex, data) => handleSubmit('daily-rent', dayIndex, data)}
@@ -120,6 +122,7 @@ function JournalPageContent() {
           <WeeklyWeighInSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             draft={weighInDraft}
             canSubmit={canSubmitWeighIn}
             submitDisabledReason={!canSubmitWeighIn ? "Available Thursday or later" : undefined}
@@ -130,6 +133,7 @@ function JournalPageContent() {
           <WeeklyReflectionSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             draft={reflectionDraft}
             canSubmit={canSubmitReflection}
             submitDisabledReason={!canSubmitReflection ? "Available on weekends only" : undefined}

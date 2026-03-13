@@ -8,6 +8,7 @@ import { MediaUploader } from './MediaUploader';
 interface WeeklyWeighInSectionProps {
   weekStartISO: string;
   userId: string;
+  experienceId?: string;
   draft?: {
     text?: string;
     mediaIds: string[];
@@ -22,6 +23,7 @@ interface WeeklyWeighInSectionProps {
 export function WeeklyWeighInSection({ 
   weekStartISO, 
   userId, 
+  experienceId,
   draft, 
   canSubmit,
   submitDisabledReason,
@@ -95,6 +97,7 @@ export function WeeklyWeighInSection({
 
         {/* Channel Selector */}
         <ChannelSelector
+          experienceId={experienceId}
           value={data.channelId}
           onChange={(channelId) => updateData({ channelId })}
         />
