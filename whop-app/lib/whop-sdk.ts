@@ -17,7 +17,8 @@ export const whopSdk = WhopServerSdk({
 
 	// This is the companyId that will be used for the api requests.
 	// When making api requests that query or mutate data about a company, you need to specify the companyId.
-	// This is optional, however if not specified certain requests will fail.
-	// This can also be applied later with the `withCompany` function.
-	companyId: process.env.NEXT_PUBLIC_WHOP_COMPANY_ID,
+	// In this app we intentionally avoid hardcoding a single company so installs work
+	// across multiple communities. Company context is resolved from the user token.
+	// This can be applied later with the `withCompany` function when needed.
+	companyId: undefined,
 });

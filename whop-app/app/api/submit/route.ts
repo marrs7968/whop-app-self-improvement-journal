@@ -4,14 +4,15 @@ import { whopSdk } from '@/lib/whop-sdk';
 import { postToChannel } from '@/lib/whop';
 import { canSubmitSection } from '@/lib/sections';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantContext } from '@/lib/tenant-context';
 
-async function ensureUser(userId: string) {
+async function ensureUser(userId: string, whopUserId: string) {
   await prisma.user.upsert({
     where: { id: userId },
     update: {},
     create: {
       id: userId,
-      whopUserId: userId,
+      whopUserId,
     },
   });
 }
@@ -19,7 +20,8 @@ async function ensureUser(userId: string) {
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const body = await request.json();
     const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId } = body;
@@ -57,12 +59,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await ensureUser(userId);
+    await ensureUser(context.scopedUserId, context.userId);
 
     const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
     const submissionData = await prisma.submission.create({
       data: {
-        userId,
+        userId: context.scopedUserId,
         weekStartISO,
         sectionKey,
         dayIndex: normalizedDayIndex,
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Clear matching draft after successful submit.
     await prisma.draft.deleteMany({
       where: {
-        userId,
+        userId: context.scopedUserId,
         weekStartISO,
         sectionKey,
         dayIndex: normalizedDayIndex,

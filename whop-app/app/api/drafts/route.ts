@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantContext } from '@/lib/tenant-context';
 
 function parseMediaIds(value: string | null | undefined): string[] {
   if (!value) return [];
@@ -13,13 +14,13 @@ function parseMediaIds(value: string | null | undefined): string[] {
   }
 }
 
-async function ensureUser(userId: string) {
+async function ensureUser(userId: string, whopUserId: string) {
   await prisma.user.upsert({
     where: { id: userId },
     update: {},
     create: {
       id: userId,
-      whopUserId: userId,
+      whopUserId,
     },
   });
 }
@@ -27,7 +28,8 @@ async function ensureUser(userId: string) {
 export async function GET(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const { searchParams } = new URL(request.url);
     const weekStartISO = searchParams.get('weekStartISO');
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     const dayIndexFilter = dayIndex !== null ? parseInt(dayIndex, 10) : undefined;
     const drafts = await prisma.draft.findMany({
       where: {
-        userId,
+        userId: context.scopedUserId,
         weekStartISO,
         ...(sectionKey ? { sectionKey } : {}),
         ...(dayIndexFilter !== undefined && !Number.isNaN(dayIndexFilter) ? { dayIndex: dayIndexFilter } : {}),
@@ -70,7 +72,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const body = await request.json();
     const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId } = body;
@@ -82,13 +85,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await ensureUser(userId);
+    await ensureUser(context.scopedUserId, context.userId);
 
     const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
 
     const existing = await prisma.draft.findFirst({
       where: {
-        userId,
+        userId: context.scopedUserId,
         weekStartISO,
         sectionKey,
         dayIndex: normalizedDayIndex,
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest) {
         })
       : await prisma.draft.create({
           data: {
-            userId,
+            userId: context.scopedUserId,
             weekStartISO,
             sectionKey,
             dayIndex: normalizedDayIndex,
@@ -133,7 +136,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const { searchParams } = new URL(request.url);
     const weekStartISO = searchParams.get('weekStartISO');
@@ -151,7 +155,7 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.draft.deleteMany({
       where: {
-        userId,
+        userId: context.scopedUserId,
         weekStartISO,
         sectionKey,
         dayIndex: dayIndexNum,
