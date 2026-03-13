@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WeekHeader } from '@/components/WeekHeader';
 import { DailyRentSection } from '@/components/DailyRentSection';
@@ -9,9 +9,10 @@ import { WeeklyReflectionSection } from '@/components/WeeklyReflectionSection';
 import { getCurrentWeekStart } from '@/lib/dates';
 import { canSubmitSection } from '@/lib/sections';
 
-export default function JournalPage() {
+function JournalPageContent() {
   const searchParams = useSearchParams();
   const weekStartISO = searchParams.get('w') || getCurrentWeekStart();
+  const experienceId = searchParams.get('experienceId') || '';
   
   const [userName, setUserName] = useState('User');
   const [userId, setUserId] = useState('');
@@ -112,6 +113,7 @@ export default function JournalPage() {
           <DailyRentSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             drafts={dailyRentDrafts}
             onSaveDraft={(dayIndex, data) => handleSaveDraft('daily-rent', dayIndex, data)}
             onSubmit={(dayIndex, data) => handleSubmit('daily-rent', dayIndex, data)}
@@ -120,6 +122,7 @@ export default function JournalPage() {
           <WeeklyWeighInSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             draft={weighInDraft}
             canSubmit={canSubmitWeighIn}
             submitDisabledReason={!canSubmitWeighIn ? "Available Thursday or later" : undefined}
@@ -130,6 +133,7 @@ export default function JournalPage() {
           <WeeklyReflectionSection
             weekStartISO={weekStartISO}
             userId={userId}
+            experienceId={experienceId}
             draft={reflectionDraft}
             canSubmit={canSubmitReflection}
             submitDisabledReason={!canSubmitReflection ? "Available on weekends only" : undefined}
@@ -139,6 +143,20 @@ export default function JournalPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JournalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-zinc-900 text-zinc-100 flex items-center justify-center">
+          <div className="text-xl text-emerald-100/90">Loading...</div>
+        </div>
+      }
+    >
+      <JournalPageContent />
+    </Suspense>
   );
 }
 

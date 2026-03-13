@@ -140,7 +140,7 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
         type="button"
         onClick={openFileDialog}
         disabled={disabled || uploading}
-        className="w-full h-20 border-2 border-dashed border-emerald-400/45 hover:border-emerald-300 rounded-lg flex flex-col items-center justify-center text-emerald-100/80 hover:text-emerald-100 transition-all shadow-[0_0_0_1px_rgba(52,211,153,0.1)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-20 border-2 border-dashed border-emerald-300/60 bg-zinc-800/85 hover:border-emerald-200/80 hover:bg-zinc-800 rounded-lg flex flex-col items-center justify-center text-emerald-100/85 hover:text-emerald-50 transition-all shadow-[0_0_0_1px_rgba(167,243,208,0.18)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {uploading ? (
           <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           {pendingUploads.map((pending) => (
             <div key={pending.localId} className="relative">
-              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="aspect-square bg-zinc-800/90 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center">
                 {pending.previewUrl && pending.type.startsWith('image/') ? (
                   <img src={pending.previewUrl} alt={pending.name} className="w-full h-full object-cover opacity-60" />
                 ) : pending.previewUrl && pending.type.startsWith('video/') ? (
@@ -195,7 +195,7 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
 
           {mediaIds.map((mediaId, index) => (
             <div key={mediaId} className="relative group">
-              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="aspect-square bg-zinc-800/90 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center">
                 {mediaMetaById[mediaId]?.previewUrl && mediaMetaById[mediaId].type.startsWith('image/') ? (
                   <img
                     src={mediaMetaById[mediaId].previewUrl}
