@@ -7,16 +7,53 @@ export interface Channel {
 
 export async function listChannels(): Promise<Channel[]> {
   try {
-    // This would need to be implemented based on Whop's API
-    // For now, return mock data
-    return [
-      { id: 'channel-1', name: 'General' },
-      { id: 'channel-2', name: 'Progress Updates' },
-      { id: 'channel-3', name: 'Reflections' }
-    ];
+    const companyId = process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
+    const apiKey = process.env.WHOP_API_KEY;
+
+    if (!companyId || !apiKey) {
+      throw new Error('Missing NEXT_PUBLIC_WHOP_COMPANY_ID or WHOP_API_KEY');
+    }
+
+    const response = await fetch(
+      `https://api.whop.com/api/v1/chat_channels?company_id=${encodeURIComponent(companyId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Chat channel request failed with status ${response.status}`);
+    }
+
+    const raw = await response.json();
+    const channelNodes = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+      ? raw.data
+      : Array.isArray(raw?.chat_channels)
+      ? raw.chat_channels
+      : [];
+
+    return channelNodes
+      .map((channel: any) => {
+        const id = channel?.id ?? channel?.chat_channel_id ?? channel?.experience_id;
+        const name = channel?.name ?? channel?.title ?? channel?.display_name;
+
+        if (!id || !name) return null;
+        return {
+          id: String(id),
+          name: String(name),
+        };
+      })
+      .filter(Boolean) as Channel[];
   } catch (error) {
     console.error('Error fetching channels:', error);
-    return [];
+    throw new Error('Failed to fetch channels');
   }
 }
 

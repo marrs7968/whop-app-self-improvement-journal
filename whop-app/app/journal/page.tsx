@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WeekHeader } from '@/components/WeekHeader';
 import { DailyRentSection } from '@/components/DailyRentSection';
@@ -9,7 +9,7 @@ import { WeeklyReflectionSection } from '@/components/WeeklyReflectionSection';
 import { getCurrentWeekStart } from '@/lib/dates';
 import { canSubmitSection } from '@/lib/sections';
 
-function JournalPageContent() {
+export default function JournalPage() {
   const searchParams = useSearchParams();
   const weekStartISO = searchParams.get('w') || getCurrentWeekStart();
   
@@ -94,14 +94,14 @@ function JournalPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen bg-zinc-900 text-zinc-100 flex items-center justify-center">
+        <div className="text-xl text-emerald-100/90">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-zinc-900 text-zinc-100">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <WeekHeader 
           userName={userName} 
@@ -142,14 +142,3 @@ function JournalPageContent() {
   );
 }
 
-export default function JournalPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    }>
-      <JournalPageContent />
-    </Suspense>
-  );
-}
