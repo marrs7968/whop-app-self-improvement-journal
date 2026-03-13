@@ -33,8 +33,9 @@ Without a database, cross-device draft persistence will not work.
 
 1. Provision a Postgres database (Neon, Supabase, Railway, Render, etc.).
 2. Add `DATABASE_URL` in Vercel project environment variables (Production + Preview as needed).
-3. Ensure your deploy/build step can run migrations. This project runs `prisma migrate deploy` during `npm run build`.
-4. Deploy once after adding `DATABASE_URL` so tables are created from `prisma/migrations`.
+3. Add `DIRECT_URL` for migrations (recommended with Neon): use the direct/non-pooler Postgres URL.
+4. Ensure your deploy/build step can run migrations. This project runs `prisma migrate deploy` during `npm run build`.
+5. Deploy once after adding DB URLs so tables are created from `prisma/migrations`.
 
 Optional local commands:
 
