@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "whop-proxy --command \"next dev --turbopack\"",
-    "build": "prisma migrate deploy && next build",
+    "build": "npm run db:migrate:deploy && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:deploy": "node scripts/prisma-migrate-deploy.cjs",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate"
   },
