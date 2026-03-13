@@ -108,7 +108,7 @@ export function DailyRentSection({
                 value={dayData[dayIndex]?.text || ''}
                 onChange={(e) => updateDayData(dayIndex, { text: e.target.value })}
                 placeholder="Share your daily progress, achievements, or reflections..."
-                className="w-full h-24 px-3 py-2 bg-zinc-900/70 border border-emerald-400/35 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-300/80 resize-none transition-colors"
+                className="w-full h-24 px-3 py-2 bg-zinc-800/90 border border-emerald-300/45 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-200/80 resize-none transition-colors"
               />
             </div>
 

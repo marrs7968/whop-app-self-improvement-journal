@@ -77,13 +77,26 @@ function normalizeChannels(raw: any): Channel[] {
 
 export async function listChannels(options: ListChannelsOptions = {}): Promise<Channel[]> {
   try {
-    const companyId = options.companyId || process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
+    let companyId = options.companyId || process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
     const apiKey = getChatApiKey();
     const experienceId = options.experienceId;
 
+    if (!companyId && experienceId) {
+      try {
+        const experience = await whopSdk.experiences.getExperience({ experienceId });
+        companyId =
+          (experience as any)?.company_id ??
+          (experience as any)?.companyId ??
+          (experience as any)?.company?.id ??
+          undefined;
+      } catch (resolveCompanyError) {
+        console.error('Could not resolve company from experience context:', resolveCompanyError);
+      }
+    }
+
     if (companyId && apiKey) {
       const response = await fetch(
-        `https://api.whop.com/api/v1/chat_channels?company_id=${encodeURIComponent(companyId)}`,
+        `https://api.whop.com/api/v1/chat_channels?company_id=${encodeURIComponent(companyId)}&limit=100`,
         {
           method: 'GET',
           headers: {
