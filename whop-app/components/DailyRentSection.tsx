@@ -10,6 +10,7 @@ interface DailyRentSectionProps {
   weekStartISO: string;
   userId: string;
   experienceId?: string;
+  submittedByDay: boolean[];
   drafts: Array<{
     dayIndex: number;
     text?: string;
@@ -24,6 +25,7 @@ export function DailyRentSection({
   weekStartISO, 
   userId, 
   experienceId,
+  submittedByDay,
   drafts, 
   onSaveDraft, 
   onSubmit 
@@ -33,8 +35,6 @@ export function DailyRentSection({
     mediaIds: string[];
     channelId: string;
   }>>({});
-  const [submittedByDay, setSubmittedByDay] = useState<Record<number, boolean>>({});
-
   // Initialize day data from drafts
   useEffect(() => {
     const initialData: Record<number, { text: string; mediaIds: string[]; channelId: string }> = {};
@@ -53,9 +53,6 @@ export function DailyRentSection({
   }, [drafts]);
 
   const updateDayData = (dayIndex: number, updates: Partial<{ text: string; mediaIds: string[]; channelId: string }>) => {
-    if (submittedByDay[dayIndex]) {
-      setSubmittedByDay((previous) => ({ ...previous, [dayIndex]: false }));
-    }
     setDayData(prev => {
       const newData = {
         ...prev,
@@ -83,17 +80,20 @@ export function DailyRentSection({
       ...prev,
       [dayIndex]: clearedData
     }));
-    setSubmittedByDay((prev) => ({ ...prev, [dayIndex]: false }));
     
     onSaveDraft(dayIndex, clearedData);
   };
 
   const submitDay = async (dayIndex: number) => {
     const data = dayData[dayIndex];
-    const didSubmit = await onSubmit(dayIndex, data);
-    if (didSubmit) {
-      setSubmittedByDay((prev) => ({ ...prev, [dayIndex]: true }));
-    }
+    await onSubmit(dayIndex, data);
+  };
+
+  const getDateLabel = (dayIndex: number) => {
+    const weekStart = new Date(`${weekStartISO}T00:00:00`);
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    return `${getDayName(dayIndex)} ${dayDate.getMonth() + 1}/${dayDate.getDate()} - Log`;
   };
 
   return (
@@ -101,7 +101,7 @@ export function DailyRentSection({
       {Array.from({ length: 7 }, (_, dayIndex) => (
         <SectionCard
           key={dayIndex}
-          title={`${getDayName(dayIndex)} - Daily Rent`}
+          title={getDateLabel(dayIndex)}
           onSubmit={() => {
             void submitDay(dayIndex);
           }}
@@ -109,7 +109,7 @@ export function DailyRentSection({
           disabledSubmit={Boolean(submittedByDay[dayIndex])}
           submitDisabledReason={
             submittedByDay[dayIndex]
-              ? 'Already submitted for this day. Edit content to enable submit again.'
+              ? 'Already submitted for this day.'
               : undefined
           }
           className="mb-4"

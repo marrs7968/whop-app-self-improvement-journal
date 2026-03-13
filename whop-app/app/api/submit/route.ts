@@ -17,6 +17,43 @@ async function ensureUser(userId: string, whopUserId: string) {
   });
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const headersList = await headers();
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
+
+    const { searchParams } = new URL(request.url);
+    const weekStartISO = searchParams.get('weekStartISO');
+
+    if (!weekStartISO) {
+      return NextResponse.json(
+        { error: 'weekStartISO is required' },
+        { status: 400 }
+      );
+    }
+
+    const submissions = await prisma.submission.findMany({
+      where: {
+        userId: context.scopedUserId,
+        weekStartISO,
+      },
+      select: {
+        sectionKey: true,
+        dayIndex: true,
+      },
+    });
+
+    return NextResponse.json(submissions);
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch submissions' },
+      { status: 401 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();

@@ -10,6 +10,7 @@ interface WeeklyReflectionSectionProps {
   weekStartISO: string;
   userId: string;
   experienceId?: string;
+  submitted: boolean;
   draft?: {
     text?: string;
     mediaIds: string[];
@@ -25,6 +26,7 @@ export function WeeklyReflectionSection({
   weekStartISO, 
   userId, 
   experienceId,
+  submitted,
   draft, 
   canSubmit,
   submitDisabledReason,
@@ -36,8 +38,6 @@ export function WeeklyReflectionSection({
     mediaIds: [] as string[],
     channelId: ''
   });
-  const [hasSubmitted, setHasSubmitted] = useState(false);
-
   const sectionConfig = getSectionConfig('reflection');
   const promptTemplate = sectionConfig?.promptTemplate || '';
 
@@ -55,7 +55,6 @@ export function WeeklyReflectionSection({
   const updateData = (updates: Partial<typeof data>) => {
     const newData = { ...data, ...updates };
     setData(newData);
-    if (hasSubmitted) setHasSubmitted(false);
     onSaveDraft(newData);
   };
 
@@ -66,13 +65,11 @@ export function WeeklyReflectionSection({
       channelId: ''
     };
     setData(clearedData);
-    setHasSubmitted(false);
     onSaveDraft(clearedData);
   };
 
   const submitData = async () => {
-    const didSubmit = await onSubmit(data);
-    if (didSubmit) setHasSubmitted(true);
+    await onSubmit(data);
   };
 
   return (
@@ -82,10 +79,10 @@ export function WeeklyReflectionSection({
         void submitData();
       }}
       onClear={clearData}
-      disabledSubmit={!canSubmit || hasSubmitted}
+      disabledSubmit={!canSubmit || submitted}
       submitDisabledReason={
-        hasSubmitted
-          ? 'Already submitted. Edit content to enable submit again.'
+        submitted
+          ? 'Already submitted for this week.'
           : (submitDisabledReason || 'Available on weekends only')
       }
     >

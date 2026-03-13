@@ -17,6 +17,9 @@ function JournalPageContent() {
   const [userName, setUserName] = useState('User');
   const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submittedDailyByDay, setSubmittedDailyByDay] = useState<boolean[]>(Array.from({ length: 7 }, () => false));
+  const [submittedWeighIn, setSubmittedWeighIn] = useState(false);
+  const [submittedReflection, setSubmittedReflection] = useState(false);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -46,6 +49,43 @@ function JournalPageContent() {
 
   const weighInDraft = { text: '', mediaIds: [], channelId: '' };
   const reflectionDraft = { text: '', mediaIds: [], channelId: '' };
+
+  useEffect(() => {
+    async function fetchSubmissionState() {
+      try {
+        const response = await fetch(`/api/submit?weekStartISO=${encodeURIComponent(weekStartISO)}`);
+        if (!response.ok) return;
+
+        const submissions = (await response.json()) as Array<{ sectionKey: string; dayIndex: number | null }>;
+        const daily = Array.from({ length: 7 }, () => false);
+        let weighIn = false;
+        let reflection = false;
+
+        for (const submission of submissions) {
+          if (
+            submission.sectionKey === 'daily-rent' &&
+            typeof submission.dayIndex === 'number' &&
+            submission.dayIndex >= 0 &&
+            submission.dayIndex < 7
+          ) {
+            daily[submission.dayIndex] = true;
+          } else if (submission.sectionKey === 'weigh-in') {
+            weighIn = true;
+          } else if (submission.sectionKey === 'reflection') {
+            reflection = true;
+          }
+        }
+
+        setSubmittedDailyByDay(daily);
+        setSubmittedWeighIn(weighIn);
+        setSubmittedReflection(reflection);
+      } catch (error) {
+        console.error('Error fetching submission state:', error);
+      }
+    }
+
+    fetchSubmissionState();
+  }, [weekStartISO]);
 
   const now = new Date();
   const canSubmitWeighIn = canSubmitSection('weigh-in', now);
@@ -83,6 +123,17 @@ function JournalPageContent() {
 
       if (response.ok) {
         alert('Submitted successfully!');
+        if (sectionKey === 'daily-rent' && typeof dayIndex === 'number' && dayIndex >= 0 && dayIndex < 7) {
+          setSubmittedDailyByDay((prev) => {
+            const next = [...prev];
+            next[dayIndex] = true;
+            return next;
+          });
+        } else if (sectionKey === 'weigh-in') {
+          setSubmittedWeighIn(true);
+        } else if (sectionKey === 'reflection') {
+          setSubmittedReflection(true);
+        }
         return true;
       } else {
         const error = await response.json();
@@ -117,6 +168,7 @@ function JournalPageContent() {
             weekStartISO={weekStartISO}
             userId={userId}
             experienceId={experienceId}
+            submittedByDay={submittedDailyByDay}
             drafts={dailyRentDrafts}
             onSaveDraft={(dayIndex, data) => handleSaveDraft('daily-rent', dayIndex, data)}
             onSubmit={(dayIndex, data) => handleSubmit('daily-rent', dayIndex, data)}
@@ -126,6 +178,7 @@ function JournalPageContent() {
             weekStartISO={weekStartISO}
             userId={userId}
             experienceId={experienceId}
+            submitted={submittedWeighIn}
             draft={weighInDraft}
             canSubmit={canSubmitWeighIn}
             submitDisabledReason={!canSubmitWeighIn ? "Available Thursday or later" : undefined}
@@ -137,6 +190,7 @@ function JournalPageContent() {
             weekStartISO={weekStartISO}
             userId={userId}
             experienceId={experienceId}
+            submitted={submittedReflection}
             draft={reflectionDraft}
             canSubmit={canSubmitReflection}
             submitDisabledReason={!canSubmitReflection ? "Available on weekends only" : undefined}

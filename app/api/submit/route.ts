@@ -7,6 +7,40 @@ import { canSubmitSection } from '@/lib/sections';
 // Mock database for submissions (replace with Prisma when database is working)
 const mockSubmissions: Record<string, any[]> = {};
 
+export async function GET(request: NextRequest) {
+  try {
+    const headersList = await headers();
+    const { userId } = await whopSdk.verifyUserToken(headersList);
+
+    const { searchParams } = new URL(request.url);
+    const weekStartISO = searchParams.get('weekStartISO');
+
+    if (!weekStartISO) {
+      return NextResponse.json(
+        { error: 'weekStartISO is required' },
+        { status: 400 }
+      );
+    }
+
+    const submissions = (mockSubmissions[userId] || []).filter(
+      (submission) => submission.weekStartISO === weekStartISO
+    );
+
+    return NextResponse.json(
+      submissions.map((submission) => ({
+        sectionKey: submission.sectionKey,
+        dayIndex: submission.dayIndex ?? null,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch submissions' },
+      { status: 401 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();
@@ -78,4 +112,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 
