@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "whop-proxy --command \"next dev --turbopack\"",
-    "build": "next build",
+    "build": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
     "postinstall": "prisma generate"
   },
   "dependencies": {

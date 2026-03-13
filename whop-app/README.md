@@ -26,6 +26,21 @@ To run this project:
 
 3. If necessary update you "Base Domain" and webhook callback urls on the app settings page on the whop dashboard.
 
+## Database setup (required for persistent drafts/submissions)
+
+This app now persists journal drafts and submissions in Postgres using Prisma.
+Without a database, cross-device draft persistence will not work.
+
+1. Provision a Postgres database (Neon, Supabase, Railway, Render, etc.).
+2. Add `DATABASE_URL` in Vercel project environment variables (Production + Preview as needed).
+3. Ensure your deploy/build step can run migrations. This project runs `prisma migrate deploy` during `npm run build`.
+4. Deploy once after adding `DATABASE_URL` so tables are created from `prisma/migrations`.
+
+Optional local commands:
+
+- `npm run db:generate`
+- `npm run db:migrate:deploy`
+
 ## Troubleshooting
 
 **App not loading properly?** Make sure to set the "App path" in your Whop developer dashboard. The placeholder text in the UI does not mean it's set - you must explicitly enter `/experiences/[experienceId]` (or your chosen path name)
