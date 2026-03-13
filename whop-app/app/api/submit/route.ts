@@ -3,9 +3,18 @@ import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
 import { postToChannel } from '@/lib/whop';
 import { canSubmitSection } from '@/lib/sections';
+import { prisma } from '@/lib/prisma';
 
-// Mock database for submissions (replace with Prisma when database is working)
-const mockSubmissions: Record<string, any[]> = {};
+async function ensureUser(userId: string) {
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: {
+      id: userId,
+      whopUserId: userId,
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,27 +57,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create submission record
-    const submissionData = {
-      id: `submission_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId,
-      weekStartISO,
-      sectionKey,
-      dayIndex: dayIndex || null,
-      text: text || '',
-      mediaIds: JSON.stringify(mediaIds || []),
-      channelId,
-      submittedAt: new Date().toISOString()
-    };
+    await ensureUser(userId);
 
-    if (!mockSubmissions[userId]) {
-      mockSubmissions[userId] = [];
-    }
-    mockSubmissions[userId].push(submissionData);
+    const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
+    const submissionData = await prisma.submission.create({
+      data: {
+        userId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: normalizedDayIndex,
+        text: text || '',
+        mediaIds: JSON.stringify(mediaIds || []),
+        channelId,
+      },
+    });
+
+    // Clear matching draft after successful submit.
+    await prisma.draft.deleteMany({
+      where: {
+        userId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: normalizedDayIndex,
+      },
+    });
 
     return NextResponse.json({ 
       success: true, 
-      submission: submissionData 
+      submission: {
+        ...submissionData,
+        mediaIds: mediaIds || [],
+      }
     });
   } catch (error) {
     console.error('Error submitting:', error);

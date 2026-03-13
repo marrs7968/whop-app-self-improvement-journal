@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
+import { prisma } from '@/lib/prisma';
 
-// Mock database for now (replace with Prisma when database is working)
-const mockDrafts: Record<string, any[]> = {};
+function parseMediaIds(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function ensureUser(userId: string) {
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: {
+      id: userId,
+      whopUserId: userId,
+    },
+  });
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,19 +41,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userDrafts = mockDrafts[userId] || [];
-    let filteredDrafts = userDrafts.filter(draft => draft.weekStartISO === weekStartISO);
+    const dayIndexFilter = dayIndex !== null ? parseInt(dayIndex, 10) : undefined;
+    const drafts = await prisma.draft.findMany({
+      where: {
+        userId,
+        weekStartISO,
+        ...(sectionKey ? { sectionKey } : {}),
+        ...(dayIndexFilter !== undefined && !Number.isNaN(dayIndexFilter) ? { dayIndex: dayIndexFilter } : {}),
+      },
+      orderBy: [{ sectionKey: 'asc' }, { dayIndex: 'asc' }],
+    });
 
-    if (sectionKey) {
-      filteredDrafts = filteredDrafts.filter(draft => draft.sectionKey === sectionKey);
-    }
-
-    if (dayIndex !== null) {
-      const dayIndexNum = parseInt(dayIndex);
-      filteredDrafts = filteredDrafts.filter(draft => draft.dayIndex === dayIndexNum);
-    }
-
-    return NextResponse.json(filteredDrafts);
+    return NextResponse.json(
+      drafts.map((draft) => ({
+        ...draft,
+        mediaIds: parseMediaIds(draft.mediaIds),
+      }))
+    );
   } catch (error) {
     console.error('Error fetching drafts:', error);
     return NextResponse.json(
@@ -59,36 +82,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!mockDrafts[userId]) {
-      mockDrafts[userId] = [];
-    }
+    await ensureUser(userId);
 
-    // Find existing draft
-    const existingDraftIndex = mockDrafts[userId].findIndex(
-      draft => draft.weekStartISO === weekStartISO && 
-               draft.sectionKey === sectionKey && 
-               draft.dayIndex === dayIndex
-    );
+    const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
 
-    const draftData = {
-      id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId,
-      weekStartISO,
-      sectionKey,
-      dayIndex: dayIndex || null,
-      text: text || '',
-      mediaIds: JSON.stringify(mediaIds || []),
-      channelId: channelId || null,
-      updatedAt: new Date().toISOString()
-    };
+    const existing = await prisma.draft.findFirst({
+      where: {
+        userId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: normalizedDayIndex,
+      },
+      select: { id: true },
+    });
 
-    if (existingDraftIndex >= 0) {
-      mockDrafts[userId][existingDraftIndex] = draftData;
-    } else {
-      mockDrafts[userId].push(draftData);
-    }
+    const draftData = existing
+      ? await prisma.draft.update({
+          where: { id: existing.id },
+          data: {
+            text: text || '',
+            mediaIds: JSON.stringify(mediaIds || []),
+            channelId: channelId || null,
+          },
+        })
+      : await prisma.draft.create({
+          data: {
+            userId,
+            weekStartISO,
+            sectionKey,
+            dayIndex: normalizedDayIndex,
+            text: text || '',
+            mediaIds: JSON.stringify(mediaIds || []),
+            channelId: channelId || null,
+          },
+        });
 
-    return NextResponse.json(draftData);
+    return NextResponse.json({
+      ...draftData,
+      mediaIds: parseMediaIds(draftData.mediaIds),
+    });
   } catch (error) {
     console.error('Error saving draft:', error);
     return NextResponse.json(
@@ -115,17 +147,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!mockDrafts[userId]) {
-      return NextResponse.json({ success: true });
-    }
-
     const dayIndexNum = dayIndex ? parseInt(dayIndex) : null;
-    
-    mockDrafts[userId] = mockDrafts[userId].filter(
-      draft => !(draft.weekStartISO === weekStartISO && 
-                 draft.sectionKey === sectionKey && 
-                 draft.dayIndex === dayIndexNum)
-    );
+
+    await prisma.draft.deleteMany({
+      where: {
+        userId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: dayIndexNum,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

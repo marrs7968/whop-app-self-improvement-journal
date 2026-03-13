@@ -10,6 +10,22 @@ interface ListChannelsOptions {
   experienceId?: string;
 }
 
+interface WhopFileResponse {
+  id: string;
+  upload_status?: 'pending' | 'processing' | 'ready' | 'failed';
+  upload_url?: string | null;
+  upload_headers?: Record<string, string> | null;
+  url?: string | null;
+}
+
+function getChatApiKey(): string {
+  const apiKey = process.env.WHOP_COMPANY_API_KEY || process.env.WHOP_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing WHOP_COMPANY_API_KEY or WHOP_API_KEY');
+  }
+  return apiKey;
+}
+
 function normalizeChannels(raw: any): Channel[] {
   const channelNodes = Array.isArray(raw)
     ? raw
@@ -21,13 +37,21 @@ function normalizeChannels(raw: any): Channel[] {
 
   return channelNodes
     .map((channel: any) => {
-      const id = channel?.id ?? channel?.chat_channel_id ?? channel?.experience_id;
-      const name = channel?.name ?? channel?.title ?? channel?.display_name;
+      const id =
+        channel?.experience?.id ??
+        channel?.experience_id ??
+        channel?.id ??
+        channel?.chat_channel_id;
+      const name =
+        channel?.name ??
+        channel?.title ??
+        channel?.display_name ??
+        channel?.experience?.name;
 
       if (!id || !name) return null;
       return {
         id: String(id),
-        name: String(name),
+        name: String(name === 'Chat' && channel?.experience?.id ? `Chat (${String(channel.experience.id).slice(-5)})` : name),
       };
     })
     .filter(Boolean) as Channel[];
@@ -36,7 +60,7 @@ function normalizeChannels(raw: any): Channel[] {
 export async function listChannels(options: ListChannelsOptions = {}): Promise<Channel[]> {
   try {
     const companyId = options.companyId || process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
-    const apiKey = process.env.WHOP_API_KEY;
+    const apiKey = getChatApiKey();
     const experienceId = options.experienceId;
 
     if (companyId && apiKey) {
@@ -87,10 +111,71 @@ export async function listChannels(options: ListChannelsOptions = {}): Promise<C
 
 export async function uploadMedia(file: File | Blob): Promise<string> {
   try {
-    // This would need to be implemented based on Whop's upload API
-    // For now, return a mock media ID
-    const mockMediaId = `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    return mockMediaId;
+    const apiKey = getChatApiKey();
+    const filename = (file as File).name || `upload-${Date.now()}`;
+    const contentType = (file as File).type || 'application/octet-stream';
+    const fileBytes = Buffer.from(await file.arrayBuffer());
+
+    const createResp = await fetch('https://api.whop.com/api/v1/files', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filename }),
+      cache: 'no-store',
+    });
+
+    if (!createResp.ok) {
+      throw new Error(`Failed to create file upload with status ${createResp.status}`);
+    }
+
+    const fileData = (await createResp.json()) as WhopFileResponse;
+    if (!fileData?.id || !fileData?.upload_url) {
+      throw new Error('File create response missing upload URL');
+    }
+
+    const uploadHeaders: Record<string, string> = {
+      ...(fileData.upload_headers || {}),
+      'Content-Type': contentType,
+    };
+
+    const uploadResp = await fetch(fileData.upload_url, {
+      method: 'PUT',
+      headers: uploadHeaders,
+      body: fileBytes,
+    });
+
+    if (!uploadResp.ok) {
+      throw new Error(`Failed to upload file bytes with status ${uploadResp.status}`);
+    }
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const statusResp = await fetch(`https://api.whop.com/api/v1/files/${encodeURIComponent(fileData.id)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!statusResp.ok) {
+        throw new Error(`Failed to retrieve file status with status ${statusResp.status}`);
+      }
+
+      const statusData = (await statusResp.json()) as WhopFileResponse;
+      if (statusData.upload_status === 'ready') {
+        return statusData.id;
+      }
+      if (statusData.upload_status === 'failed') {
+        throw new Error('Uploaded file failed processing');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+
+    return fileData.id;
   } catch (error) {
     console.error('Error uploading media:', error);
     throw new Error('Failed to upload media');
@@ -103,17 +188,28 @@ export async function postToChannel(
   mediaIds: string[]
 ): Promise<void> {
   try {
-    // This would need to be implemented based on Whop's API
-    // For now, just log the action
-    console.log('Posting to channel:', {
-      channelId,
-      text,
-      mediaIds
+    const apiKey = getChatApiKey();
+
+    const payload = {
+      channel_id: channelId,
+      content: text?.trim() ? text : ' ',
+      attachments: (mediaIds || []).map((id) => ({ id })),
+    };
+
+    const response = await fetch('https://api.whop.com/api/v1/messages', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
     });
-    
-    // In a real implementation, this would call Whop's API to post the message
-    // with the text and attached media IDs to the selected channel
-    
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create chat message (${response.status}): ${errorText}`);
+    }
   } catch (error) {
     console.error('Error posting to channel:', error);
     throw new Error('Failed to post to channel');

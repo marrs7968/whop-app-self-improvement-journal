@@ -9,6 +9,14 @@ import { WeeklyReflectionSection } from '@/components/WeeklyReflectionSection';
 import { getCurrentWeekStart } from '@/lib/dates';
 import { canSubmitSection } from '@/lib/sections';
 
+interface DraftPayload {
+  sectionKey: string;
+  dayIndex: number | null;
+  text?: string;
+  mediaIds?: string[];
+  channelId?: string | null;
+}
+
 function JournalPageContent() {
   const searchParams = useSearchParams();
   const weekStartISO = searchParams.get('w') || getCurrentWeekStart();
@@ -17,6 +25,16 @@ function JournalPageContent() {
   const [userName, setUserName] = useState('User');
   const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [dailyRentDrafts, setDailyRentDrafts] = useState(
+    Array.from({ length: 7 }, (_, dayIndex) => ({
+      dayIndex,
+      text: '',
+      mediaIds: [] as string[],
+      channelId: ''
+    }))
+  );
+  const [weighInDraft, setWeighInDraft] = useState({ text: '', mediaIds: [] as string[], channelId: '' });
+  const [reflectionDraft, setReflectionDraft] = useState({ text: '', mediaIds: [] as string[], channelId: '' });
 
   useEffect(() => {
     async function fetchUserData() {
@@ -37,15 +55,51 @@ function JournalPageContent() {
     fetchUserData();
   }, []);
 
-  const dailyRentDrafts = Array.from({ length: 7 }, (_, dayIndex) => ({
-    dayIndex,
-    text: '',
-    mediaIds: [],
-    channelId: ''
-  }));
+  useEffect(() => {
+    async function fetchDrafts() {
+      try {
+        const response = await fetch(`/api/drafts?weekStartISO=${encodeURIComponent(weekStartISO)}`);
+        if (!response.ok) return;
 
-  const weighInDraft = { text: '', mediaIds: [], channelId: '' };
-  const reflectionDraft = { text: '', mediaIds: [], channelId: '' };
+        const drafts = (await response.json()) as DraftPayload[];
+        const daily = Array.from({ length: 7 }, (_, dayIndex) => ({
+          dayIndex,
+          text: '',
+          mediaIds: [] as string[],
+          channelId: ''
+        }));
+        const weighIn = { text: '', mediaIds: [] as string[], channelId: '' };
+        const reflection = { text: '', mediaIds: [] as string[], channelId: '' };
+
+        for (const draft of drafts) {
+          if (draft.sectionKey === 'daily-rent' && typeof draft.dayIndex === 'number' && draft.dayIndex >= 0 && draft.dayIndex < 7) {
+            daily[draft.dayIndex] = {
+              dayIndex: draft.dayIndex,
+              text: draft.text || '',
+              mediaIds: draft.mediaIds || [],
+              channelId: draft.channelId || ''
+            };
+          } else if (draft.sectionKey === 'weigh-in') {
+            weighIn.text = draft.text || '';
+            weighIn.mediaIds = draft.mediaIds || [];
+            weighIn.channelId = draft.channelId || '';
+          } else if (draft.sectionKey === 'reflection') {
+            reflection.text = draft.text || '';
+            reflection.mediaIds = draft.mediaIds || [];
+            reflection.channelId = draft.channelId || '';
+          }
+        }
+
+        setDailyRentDrafts(daily);
+        setWeighInDraft(weighIn);
+        setReflectionDraft(reflection);
+      } catch (error) {
+        console.error('Error fetching drafts:', error);
+      }
+    }
+
+    fetchDrafts();
+  }, [weekStartISO]);
 
   const now = new Date();
   const canSubmitWeighIn = canSubmitSection('weigh-in', now);
