@@ -80,9 +80,9 @@ export function WeeklyReflectionSection({
       <div className="space-y-4">
         {/* Prompt Template */}
         {promptTemplate && (
-          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-zinc-300 mb-2">Reflection Questions:</h4>
-            <div className="text-sm text-zinc-400 whitespace-pre-line">
+          <div className="bg-zinc-900/70 border border-emerald-400/25 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-emerald-100/90 mb-2">Reflection Questions:</h4>
+            <div className="text-sm text-emerald-100/65 whitespace-pre-line">
               {promptTemplate}
             </div>
           </div>
@@ -90,14 +90,14 @@ export function WeeklyReflectionSection({
 
         {/* Text Input */}
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-2">
+          <label className="block text-sm font-medium text-emerald-100/90 mb-2">
             Your Reflection
           </label>
           <textarea
             value={data.text}
             onChange={(e) => updateData({ text: e.target.value })}
             placeholder="Reflect on your week using the questions above as a guide..."
-            className="w-full h-40 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+            className="w-full h-40 px-3 py-2 bg-zinc-900/70 border border-emerald-400/35 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-300/80 resize-none transition-colors"
           />
         </div>
 
@@ -116,4 +116,5 @@ export function WeeklyReflectionSection({
     </SectionCard>
   );
 }
+
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface MediaUploaderProps {
   mediaIds: string[];
@@ -10,17 +10,39 @@ interface MediaUploaderProps {
 
 export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUploaderProps) {
   const [uploading, setUploading] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<
+    Array<{ localId: string; name: string; type: string; previewUrl?: string }>
+  >([]);
+  const [mediaMetaById, setMediaMetaById] = useState<
+    Record<string, { name: string; type: string; previewUrl?: string }>
+  >({});
+  const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaMetaRef = useRef(mediaMetaById);
+  const pendingUploadsRef = useRef(pendingUploads);
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
+    const selectedFiles = Array.from(files);
+    const pendingItems = selectedFiles.map((file, index) => ({
+      localId: `${Date.now()}-${index}`,
+      name: file.name,
+      type: file.type,
+      previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/')
+        ? URL.createObjectURL(file)
+        : undefined,
+    }));
+
+    setUploadError('');
+    setPendingUploads((prev) => [...prev, ...pendingItems]);
     setUploading(true);
+
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
+      const uploadPromises = selectedFiles.map(async (file, index) => {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
@@ -31,20 +53,56 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
         }
 
         const data = await response.json();
-        return data.mediaId;
+        return {
+          mediaId: data.mediaId as string,
+          meta: {
+            name: file.name,
+            type: file.type,
+            previewUrl: pendingItems[index]?.previewUrl,
+          },
+        };
       });
 
-      const newMediaIds = await Promise.all(uploadPromises);
+      const uploads = await Promise.all(uploadPromises);
+      const newMediaIds = uploads.map((upload) => upload.mediaId);
+
+      setMediaMetaById((prev) => {
+        const next = { ...prev };
+        for (const upload of uploads) {
+          next[upload.mediaId] = upload.meta;
+        }
+        return next;
+      });
+
       onChange([...mediaIds, ...newMediaIds]);
     } catch (error) {
       console.error('Error uploading files:', error);
-      // You might want to show a toast notification here
+      setUploadError('Upload failed. Please try again.');
+      pendingItems.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
     } finally {
+      setPendingUploads((prev) =>
+        prev.filter((item) => !pendingItems.some((pending) => pending.localId === item.localId))
+      );
       setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
   const removeMedia = (index: number) => {
+    const mediaId = mediaIds[index];
+    const meta = mediaMetaById[mediaId];
+    if (meta?.previewUrl) {
+      URL.revokeObjectURL(meta.previewUrl);
+    }
+    setMediaMetaById((prev) => {
+      const next = { ...prev };
+      delete next[mediaId];
+      return next;
+    });
     const newMediaIds = mediaIds.filter((_, i) => i !== index);
     onChange(newMediaIds);
   };
@@ -53,23 +111,41 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
     fileInputRef.current?.click();
   };
 
+  useEffect(() => {
+    mediaMetaRef.current = mediaMetaById;
+  }, [mediaMetaById]);
+
+  useEffect(() => {
+    pendingUploadsRef.current = pendingUploads;
+  }, [pendingUploads]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(mediaMetaRef.current).forEach((meta) => {
+        if (meta.previewUrl) URL.revokeObjectURL(meta.previewUrl);
+      });
+      pendingUploadsRef.current.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+  }, []);
+
   return (
     <div className="w-full">
-      <label className="block text-sm font-medium text-zinc-300 mb-2">
+      <label className="block text-sm font-medium text-emerald-100/90 mb-2">
         Media (Images & Videos)
       </label>
-      
-      {/* Upload Button */}
+
       <button
         type="button"
         onClick={openFileDialog}
         disabled={disabled || uploading}
-        className="w-full h-20 border-2 border-dashed border-zinc-600 hover:border-green-500 rounded-lg flex flex-col items-center justify-center text-zinc-400 hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-20 border-2 border-dashed border-emerald-400/45 hover:border-emerald-300 rounded-lg flex flex-col items-center justify-center text-emerald-100/80 hover:text-emerald-100 transition-all shadow-[0_0_0_1px_rgba(52,211,153,0.1)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {uploading ? (
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
-            <span>Uploading...</span>
+            <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin"></div>
+            <span>Uploading media...</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1">
@@ -91,21 +167,54 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
         disabled={disabled || uploading}
       />
 
-      {/* Media Preview */}
-      {mediaIds.length > 0 && (
+      {uploadError && <p className="text-xs text-rose-300 mt-2">{uploadError}</p>}
+
+      {(pendingUploads.length > 0 || mediaIds.length > 0) && (
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+          {pendingUploads.map((pending) => (
+            <div key={pending.localId} className="relative">
+              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+                {pending.previewUrl && pending.type.startsWith('image/') ? (
+                  <img src={pending.previewUrl} alt={pending.name} className="w-full h-full object-cover opacity-60" />
+                ) : pending.previewUrl && pending.type.startsWith('video/') ? (
+                  <video src={pending.previewUrl} className="w-full h-full object-cover opacity-60" />
+                ) : (
+                  <div className="text-emerald-100/60 text-xs text-center px-2 break-words">
+                    {pending.name}
+                  </div>
+                )}
+              </div>
+              <div className="absolute inset-0 bg-zinc-950/60 rounded-lg flex items-center justify-center">
+                <div className="flex items-center gap-2 text-xs text-emerald-100">
+                  <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin"></div>
+                  Uploading
+                </div>
+              </div>
+            </div>
+          ))}
+
           {mediaIds.map((mediaId, index) => (
             <div key={mediaId} className="relative group">
-              <div className="aspect-square bg-zinc-800 rounded-lg flex items-center justify-center">
-                <div className="text-zinc-500 text-sm">
-                  Media {index + 1}
-                </div>
+              <div className="aspect-square bg-zinc-900/70 border border-emerald-500/30 rounded-lg overflow-hidden flex items-center justify-center">
+                {mediaMetaById[mediaId]?.previewUrl && mediaMetaById[mediaId].type.startsWith('image/') ? (
+                  <img
+                    src={mediaMetaById[mediaId].previewUrl}
+                    alt={mediaMetaById[mediaId].name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : mediaMetaById[mediaId]?.previewUrl && mediaMetaById[mediaId].type.startsWith('video/') ? (
+                  <video src={mediaMetaById[mediaId].previewUrl} className="w-full h-full object-cover" muted />
+                ) : (
+                  <div className="text-emerald-100/70 text-xs text-center px-2 break-words">
+                    {mediaMetaById[mediaId]?.name || `Attached media ${index + 1}`}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => removeMedia(index)}
                 disabled={disabled}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                className="absolute -top-2 -right-2 w-7 h-7 bg-zinc-950 border border-rose-300/70 hover:border-rose-300 text-rose-200 rounded-full flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-all shadow-[0_4px_10px_rgba(0,0,0,0.4)] active:translate-y-px disabled:opacity-50"
                 aria-label="Remove media"
               >
                 ×
@@ -114,7 +223,14 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
           ))}
         </div>
       )}
+
+      {mediaIds.length > 0 && (
+        <p className="text-xs text-emerald-100/70 mt-2">
+          {mediaIds.length} file{mediaIds.length > 1 ? 's' : ''} attached
+        </p>
+      )}
     </div>
   );
 }
+
 

@@ -76,14 +76,14 @@ export function WeeklyWeighInSection({
       <div className="space-y-4">
         {/* Text Input */}
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-2">
+          <label className="block text-sm font-medium text-emerald-100/90 mb-2">
             Weight & Progress Update
           </label>
           <textarea
             value={data.text}
             onChange={(e) => updateData({ text: e.target.value })}
             placeholder="Share your weight, measurements, progress photos, or any other metrics..."
-            className="w-full h-32 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+            className="w-full h-32 px-3 py-2 bg-zinc-900/70 border border-emerald-400/35 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-300/80 resize-none transition-colors"
           />
         </div>
 
@@ -102,4 +102,5 @@ export function WeeklyWeighInSection({
     </SectionCard>
   );
 }
+
 

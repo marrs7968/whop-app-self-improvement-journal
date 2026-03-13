@@ -30,32 +30,32 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
+    <div className="bg-zinc-900/80 border border-emerald-500/25 rounded-2xl p-6 mb-6 shadow-[0_0_0_1px_rgba(16,185,129,0.06),0_20px_50px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">
+          <h1 className="text-2xl font-bold text-emerald-50">
             {process.env.NEXT_PUBLIC_APP_NAME || 'Crusadia Journal'}
           </h1>
-          <p className="text-zinc-400 mt-1">
-            Welcome back, <span className="text-green-400 font-medium">{userName}</span>
+          <p className="text-emerald-100/70 mt-1">
+            Welcome back, <span className="text-emerald-300 font-medium">{userName}</span>
           </p>
         </div>
         
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-zinc-100 mb-2">
+          <h2 className="text-xl font-semibold text-emerald-50 mb-2">
             {weekRange.formatted}
           </h2>
           <div className="flex items-center gap-4">
             <button
               onClick={goToPreviousWeek}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg transition-colors"
+              className="px-4 py-2 bg-zinc-950/70 border border-emerald-400/45 hover:border-emerald-300 text-emerald-100 rounded-lg transition-all shadow-[0_4px_12px_rgba(0,0,0,0.35)] active:translate-y-px active:shadow-none"
               aria-label="Previous week"
             >
               ← Prev
             </button>
             <button
               onClick={goToNextWeek}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg transition-colors"
+              className="px-4 py-2 bg-zinc-950/70 border border-emerald-400/45 hover:border-emerald-300 text-emerald-100 rounded-lg transition-all shadow-[0_4px_12px_rgba(0,0,0,0.35)] active:translate-y-px active:shadow-none"
               aria-label="Next week"
             >
               Next →
@@ -66,4 +66,5 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
     </div>
   );
 }
+
 
