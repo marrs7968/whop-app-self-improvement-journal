@@ -54,8 +54,8 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
   }, [weekStartISO]);
 
   return (
-    <div className="bg-emerald-200/30 border border-emerald-100/80 rounded-2xl p-6 mb-6 shadow-[0_0_0_2px_rgba(167,243,208,0.35),0_20px_50px_rgba(0,0,0,0.35)]">
-      <div className="flex items-center justify-between">
+    <div className="bg-emerald-200/30 border border-emerald-100/80 rounded-2xl p-6 mb-6 shadow-[0_0_0_2px_rgba(167,243,208,0.35),0_20px_50px_rgba(0,0,0,0.35)] space-y-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-emerald-50">
             {process.env.NEXT_PUBLIC_APP_NAME || 'Self-improvement Journal'}
@@ -63,11 +63,6 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
           <p className="text-emerald-100/70 mt-1">
             Welcome back, <span className="text-emerald-300 font-medium">{userName}</span>
           </p>
-          {quote && (
-            <p className="text-xs italic text-emerald-50/80 mt-3 max-w-md">
-              "{quote.quote}" - {quote.author}
-            </p>
-          )}
         </div>
         
         <div className="text-center">
@@ -92,6 +87,13 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
           </div>
         </div>
       </div>
+      {quote && (
+        <div className="bg-emerald-100/20 border border-emerald-100/60 rounded-lg px-3 py-2">
+          <p className="text-xs italic text-emerald-50/90">
+            "{quote.quote}" - {quote.author}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

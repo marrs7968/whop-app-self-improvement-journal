@@ -35,6 +35,8 @@ export function DailyRentSection({
     mediaIds: string[];
     channelId: string;
   }>>({});
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   // Initialize day data from drafts
   useEffect(() => {
     const initialData: Record<number, { text: string; mediaIds: string[]; channelId: string }> = {};
@@ -53,6 +55,12 @@ export function DailyRentSection({
   }, [drafts]);
 
   const updateDayData = (dayIndex: number, updates: Partial<{ text: string; mediaIds: string[]; channelId: string }>) => {
+    const weekStart = new Date(`${weekStartISO}T00:00:00`);
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    dayDate.setHours(0, 0, 0, 0);
+    if (dayDate.getTime() > todayStart.getTime()) return;
+
     setDayData(prev => {
       const newData = {
         ...prev,
@@ -96,6 +104,14 @@ export function DailyRentSection({
     return `${getDayName(dayIndex)} ${dayDate.getMonth() + 1}/${dayDate.getDate()} - Log`;
   };
 
+  const isFutureDay = (dayIndex: number) => {
+    const weekStart = new Date(`${weekStartISO}T00:00:00`);
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    dayDate.setHours(0, 0, 0, 0);
+    return dayDate.getTime() > todayStart.getTime();
+  };
+
   return (
     <div className="space-y-6">
       {Array.from({ length: 7 }, (_, dayIndex) => (
@@ -106,9 +122,11 @@ export function DailyRentSection({
             void submitDay(dayIndex);
           }}
           onClear={() => clearDay(dayIndex)}
-          disabledSubmit={Boolean(submittedByDay[dayIndex])}
+          disabledSubmit={Boolean(submittedByDay[dayIndex]) || isFutureDay(dayIndex)}
           submitDisabledReason={
-            submittedByDay[dayIndex]
+            isFutureDay(dayIndex)
+              ? 'This day has not happened yet.'
+              : submittedByDay[dayIndex]
               ? 'Already submitted for this day.'
               : undefined
           }
@@ -124,6 +142,7 @@ export function DailyRentSection({
                 value={dayData[dayIndex]?.text || ''}
                 onChange={(e) => updateDayData(dayIndex, { text: e.target.value })}
                 placeholder="Share your daily progress, achievements, or reflections..."
+                disabled={isFutureDay(dayIndex)}
                 className="w-full h-24 px-3 py-2 bg-zinc-800/90 border border-emerald-300/45 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-200/80 resize-none transition-colors"
               />
             </div>
@@ -131,6 +150,7 @@ export function DailyRentSection({
             {/* Media Upload */}
             <MediaUploader
               mediaIds={dayData[dayIndex]?.mediaIds || []}
+              disabled={isFutureDay(dayIndex)}
               onChange={(mediaIds) => updateDayData(dayIndex, { mediaIds })}
             />
 
@@ -138,6 +158,7 @@ export function DailyRentSection({
             <ChannelSelector
               experienceId={experienceId}
               value={dayData[dayIndex]?.channelId || ''}
+              disabled={isFutureDay(dayIndex)}
               onChange={(channelId) => updateDayData(dayIndex, { channelId })}
             />
           </div>
