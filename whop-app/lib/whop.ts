@@ -16,6 +16,12 @@ interface WhopFileResponse {
   upload_url?: string | null;
   upload_headers?: Record<string, string> | null;
   url?: string | null;
+  filename?: string | null;
+  content_type?: string | null;
+  mime_type?: string | null;
+  name?: string | null;
+  public_url?: string | null;
+  download_url?: string | null;
 }
 
 function getChatApiKey(): string {
@@ -211,6 +217,58 @@ export async function uploadMedia(file: File | Blob): Promise<string> {
     console.error('Error uploading media:', error);
     throw new Error('Failed to upload media');
   }
+}
+
+export interface MediaMetadata {
+  id: string;
+  url: string | null;
+  name: string;
+  contentType: string;
+}
+
+export async function getMediaMetadata(ids: string[]): Promise<MediaMetadata[]> {
+  const apiKey = getChatApiKey();
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const metadata = await Promise.all(
+    uniqueIds.map(async (id) => {
+      try {
+        const response = await fetch(`https://api.whop.com/api/v1/files/${encodeURIComponent(id)}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          return {
+            id,
+            url: null,
+            name: id,
+            contentType: '',
+          } satisfies MediaMetadata;
+        }
+
+        const file = (await response.json()) as WhopFileResponse;
+        return {
+          id,
+          url: file.url || file.public_url || file.download_url || null,
+          name: file.filename || file.name || id,
+          contentType: file.content_type || file.mime_type || '',
+        } satisfies MediaMetadata;
+      } catch {
+        return {
+          id,
+          url: null,
+          name: id,
+          contentType: '',
+        } satisfies MediaMetadata;
+      }
+    })
+  );
+
+  return metadata;
 }
 
 export async function postToChannel(

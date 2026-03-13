@@ -17,7 +17,7 @@ interface DailyRentSectionProps {
     channelId?: string;
   }>;
   onSaveDraft: (dayIndex: number, data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
-  onSubmit: (dayIndex: number, data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
+  onSubmit: (dayIndex: number, data: { text?: string; mediaIds: string[]; channelId?: string }) => Promise<boolean>;
 }
 
 export function DailyRentSection({ 
@@ -33,6 +33,7 @@ export function DailyRentSection({
     mediaIds: string[];
     channelId: string;
   }>>({});
+  const [submittedByDay, setSubmittedByDay] = useState<Record<number, boolean>>({});
 
   // Initialize day data from drafts
   useEffect(() => {
@@ -52,6 +53,9 @@ export function DailyRentSection({
   }, [drafts]);
 
   const updateDayData = (dayIndex: number, updates: Partial<{ text: string; mediaIds: string[]; channelId: string }>) => {
+    if (submittedByDay[dayIndex]) {
+      setSubmittedByDay((previous) => ({ ...previous, [dayIndex]: false }));
+    }
     setDayData(prev => {
       const newData = {
         ...prev,
@@ -79,13 +83,17 @@ export function DailyRentSection({
       ...prev,
       [dayIndex]: clearedData
     }));
+    setSubmittedByDay((prev) => ({ ...prev, [dayIndex]: false }));
     
     onSaveDraft(dayIndex, clearedData);
   };
 
-  const submitDay = (dayIndex: number) => {
+  const submitDay = async (dayIndex: number) => {
     const data = dayData[dayIndex];
-    onSubmit(dayIndex, data);
+    const didSubmit = await onSubmit(dayIndex, data);
+    if (didSubmit) {
+      setSubmittedByDay((prev) => ({ ...prev, [dayIndex]: true }));
+    }
   };
 
   return (
@@ -94,8 +102,16 @@ export function DailyRentSection({
         <SectionCard
           key={dayIndex}
           title={`${getDayName(dayIndex)} - Daily Rent`}
-          onSubmit={() => submitDay(dayIndex)}
+          onSubmit={() => {
+            void submitDay(dayIndex);
+          }}
           onClear={() => clearDay(dayIndex)}
+          disabledSubmit={Boolean(submittedByDay[dayIndex])}
+          submitDisabledReason={
+            submittedByDay[dayIndex]
+              ? 'Already submitted for this day. Edit content to enable submit again.'
+              : undefined
+          }
           className="mb-4"
         >
           <div className="space-y-4">

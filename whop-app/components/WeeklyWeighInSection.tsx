@@ -17,7 +17,7 @@ interface WeeklyWeighInSectionProps {
   canSubmit: boolean;
   submitDisabledReason?: string;
   onSaveDraft: (data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
-  onSubmit: (data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
+  onSubmit: (data: { text?: string; mediaIds: string[]; channelId?: string }) => Promise<boolean>;
 }
 
 export function WeeklyWeighInSection({ 
@@ -35,6 +35,7 @@ export function WeeklyWeighInSection({
     mediaIds: [] as string[],
     channelId: ''
   });
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Initialize data from draft
   useEffect(() => {
@@ -50,6 +51,7 @@ export function WeeklyWeighInSection({
   const updateData = (updates: Partial<typeof data>) => {
     const newData = { ...data, ...updates };
     setData(newData);
+    if (hasSubmitted) setHasSubmitted(false);
     onSaveDraft(newData);
   };
 
@@ -60,20 +62,28 @@ export function WeeklyWeighInSection({
       channelId: ''
     };
     setData(clearedData);
+    setHasSubmitted(false);
     onSaveDraft(clearedData);
   };
 
-  const submitData = () => {
-    onSubmit(data);
+  const submitData = async () => {
+    const didSubmit = await onSubmit(data);
+    if (didSubmit) setHasSubmitted(true);
   };
 
   return (
     <SectionCard
       title="Weekly Weigh-In"
-      onSubmit={submitData}
+      onSubmit={() => {
+        void submitData();
+      }}
       onClear={clearData}
-      disabledSubmit={!canSubmit}
-      submitDisabledReason={submitDisabledReason || "Available Thursday or later"}
+      disabledSubmit={!canSubmit || hasSubmitted}
+      submitDisabledReason={
+        hasSubmitted
+          ? 'Already submitted. Edit content to enable submit again.'
+          : (submitDisabledReason || 'Available Thursday or later')
+      }
     >
       <div className="space-y-4">
         {/* Text Input */}

@@ -74,16 +74,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Clear matching draft after successful submit.
-    await prisma.draft.deleteMany({
-      where: {
-        userId: context.scopedUserId,
-        weekStartISO,
-        sectionKey,
-        dayIndex: normalizedDayIndex,
-      },
-    });
-
     return NextResponse.json({ 
       success: true, 
       submission: {

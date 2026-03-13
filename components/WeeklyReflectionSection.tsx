@@ -18,7 +18,7 @@ interface WeeklyReflectionSectionProps {
   canSubmit: boolean;
   submitDisabledReason?: string;
   onSaveDraft: (data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
-  onSubmit: (data: { text?: string; mediaIds: string[]; channelId?: string }) => void;
+  onSubmit: (data: { text?: string; mediaIds: string[]; channelId?: string }) => Promise<boolean>;
 }
 
 export function WeeklyReflectionSection({ 
@@ -36,6 +36,7 @@ export function WeeklyReflectionSection({
     mediaIds: [] as string[],
     channelId: ''
   });
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const sectionConfig = getSectionConfig('reflection');
   const promptTemplate = sectionConfig?.promptTemplate || '';
@@ -54,6 +55,7 @@ export function WeeklyReflectionSection({
   const updateData = (updates: Partial<typeof data>) => {
     const newData = { ...data, ...updates };
     setData(newData);
+    if (hasSubmitted) setHasSubmitted(false);
     onSaveDraft(newData);
   };
 
@@ -64,20 +66,28 @@ export function WeeklyReflectionSection({
       channelId: ''
     };
     setData(clearedData);
+    setHasSubmitted(false);
     onSaveDraft(clearedData);
   };
 
-  const submitData = () => {
-    onSubmit(data);
+  const submitData = async () => {
+    const didSubmit = await onSubmit(data);
+    if (didSubmit) setHasSubmitted(true);
   };
 
   return (
     <SectionCard
       title="Weekly Reflection"
-      onSubmit={submitData}
+      onSubmit={() => {
+        void submitData();
+      }}
       onClear={clearData}
-      disabledSubmit={!canSubmit}
-      submitDisabledReason={submitDisabledReason || "Available on weekends only"}
+      disabledSubmit={!canSubmit || hasSubmitted}
+      submitDisabledReason={
+        hasSubmitted
+          ? 'Already submitted. Edit content to enable submit again.'
+          : (submitDisabledReason || 'Available on weekends only')
+      }
     >
       <div className="space-y-4">
         {/* Prompt Template */}

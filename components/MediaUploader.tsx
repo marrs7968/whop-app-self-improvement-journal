@@ -17,6 +17,7 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
     Record<string, { name: string; type: string; previewUrl?: string }>
   >({});
   const [uploadError, setUploadError] = useState('');
+  const [activePreview, setActivePreview] = useState<{ url: string; type: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaMetaRef = useRef(mediaMetaById);
   const pendingUploadsRef = useRef(pendingUploads);
@@ -120,6 +121,47 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
   }, [pendingUploads]);
 
   useEffect(() => {
+    const unresolvedIds = mediaIds.filter((id) => !mediaMetaById[id]);
+    if (unresolvedIds.length === 0) return;
+
+    let isMounted = true;
+    async function resolveExistingMedia() {
+      try {
+        const response = await fetch('/api/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: unresolvedIds }),
+        });
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const records = Array.isArray(payload?.media) ? payload.media : [];
+        if (!isMounted) return;
+
+        setMediaMetaById((prev) => {
+          const next = { ...prev };
+          for (const record of records) {
+            if (!record?.id) continue;
+            next[record.id] = {
+              name: record.name || record.id,
+              type: record.contentType || '',
+              previewUrl: record.url || undefined,
+            };
+          }
+          return next;
+        });
+      } catch (error) {
+        console.error('Error resolving media metadata:', error);
+      }
+    }
+
+    void resolveExistingMedia();
+    return () => {
+      isMounted = false;
+    };
+  }, [mediaIds, mediaMetaById]);
+
+  useEffect(() => {
     return () => {
       Object.values(mediaMetaRef.current).forEach((meta) => {
         if (meta.previewUrl) URL.revokeObjectURL(meta.previewUrl);
@@ -132,30 +174,39 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
 
   return (
     <div className="w-full">
-      <label className="block text-sm font-medium text-emerald-100/90 mb-2">
-        Media (Images & Videos)
-      </label>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-sm font-medium text-emerald-100/90">
+          Media (Images & Videos)
+        </label>
+        <button
+          type="button"
+          onClick={openFileDialog}
+          disabled={disabled || uploading}
+          className="h-8 w-8 bg-emerald-700 border border-emerald-200/80 hover:bg-emerald-600 text-emerald-50 rounded-md flex items-center justify-center transition-all shadow-[0_4px_10px_rgba(6,78,59,0.4)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Add media"
+        >
+          +
+        </button>
+      </div>
 
-      <button
-        type="button"
-        onClick={openFileDialog}
-        disabled={disabled || uploading}
-        className="w-full h-20 border-2 border-dashed border-emerald-300/60 bg-zinc-800/85 hover:border-emerald-200/80 hover:bg-zinc-800 rounded-lg flex flex-col items-center justify-center text-emerald-100/85 hover:text-emerald-50 transition-all shadow-[0_0_0_1px_rgba(167,243,208,0.18)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {uploading ? (
-          <div className="flex items-center gap-2">
+      <div className="w-full min-h-24 border border-emerald-300/45 bg-zinc-800/90 rounded-lg p-3">
+        {uploading && pendingUploads.length === 0 && (
+          <div className="flex items-center gap-2 text-sm text-emerald-100">
             <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin"></div>
             <span>Uploading media...</span>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-1">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span className="text-sm">Click to upload images or videos</span>
-          </div>
         )}
-      </button>
+
+        {!uploading && pendingUploads.length === 0 && mediaIds.length === 0 && (
+          <button
+            type="button"
+            onClick={openFileDialog}
+            disabled={disabled}
+            className="w-full h-16 border border-dashed border-emerald-300/55 rounded-md text-emerald-100/80 hover:text-emerald-50 hover:border-emerald-200/75 transition-colors disabled:opacity-50"
+          >
+            Click to upload images or videos
+          </button>
+        )}
 
       <input
         ref={fileInputRef}
@@ -170,10 +221,10 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
       {uploadError && <p className="text-xs text-rose-300 mt-2">{uploadError}</p>}
 
       {(pendingUploads.length > 0 || mediaIds.length > 0) && (
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
           {pendingUploads.map((pending) => (
             <div key={pending.localId} className="relative">
-              <div className="aspect-square bg-zinc-800/90 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="aspect-square bg-zinc-800/95 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center">
                 {pending.previewUrl && pending.type.startsWith('image/') ? (
                   <img src={pending.previewUrl} alt={pending.name} className="w-full h-full object-cover opacity-60" />
                 ) : pending.previewUrl && pending.type.startsWith('video/') ? (
@@ -195,7 +246,19 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
 
           {mediaIds.map((mediaId, index) => (
             <div key={mediaId} className="relative group">
-              <div className="aspect-square bg-zinc-800/90 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const meta = mediaMetaById[mediaId];
+                  if (!meta?.previewUrl) return;
+                  setActivePreview({
+                    url: meta.previewUrl,
+                    type: meta.type || '',
+                    name: meta.name || `Attached media ${index + 1}`,
+                  });
+                }}
+                className="w-full aspect-square bg-zinc-800/95 border border-emerald-300/40 rounded-lg overflow-hidden flex items-center justify-center"
+              >
                 {mediaMetaById[mediaId]?.previewUrl && mediaMetaById[mediaId].type.startsWith('image/') ? (
                   <img
                     src={mediaMetaById[mediaId].previewUrl}
@@ -209,7 +272,7 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
                     {mediaMetaById[mediaId]?.name || `Attached media ${index + 1}`}
                   </div>
                 )}
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={() => removeMedia(index)}
@@ -223,11 +286,40 @@ export function MediaUploader({ mediaIds, onChange, disabled = false }: MediaUpl
           ))}
         </div>
       )}
+      </div>
 
       {mediaIds.length > 0 && (
         <p className="text-xs text-emerald-100/70 mt-2">
           {mediaIds.length} file{mediaIds.length > 1 ? 's' : ''} attached
         </p>
+      )}
+
+      {activePreview && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          onClick={() => setActivePreview(null)}
+        >
+          <div
+            className="max-w-4xl w-full bg-zinc-900 border border-emerald-200/50 rounded-xl p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-emerald-100 truncate pr-2">{activePreview.name}</p>
+              <button
+                type="button"
+                onClick={() => setActivePreview(null)}
+                className="px-3 py-1 bg-emerald-700 border border-emerald-200/70 hover:bg-emerald-600 text-emerald-50 rounded-md"
+              >
+                Close
+              </button>
+            </div>
+            {activePreview.type.startsWith('video/') ? (
+              <video src={activePreview.url} controls className="w-full max-h-[70vh] rounded-lg" />
+            ) : (
+              <img src={activePreview.url} alt={activePreview.name} className="w-full max-h-[70vh] object-contain rounded-lg" />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

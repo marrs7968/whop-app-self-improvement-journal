@@ -122,7 +122,7 @@ function JournalPageContent() {
     }
   };
 
-  const handleSubmit = async (sectionKey: string, dayIndex: number | null, data: any) => {
+  const handleSubmit = async (sectionKey: string, dayIndex: number | null, data: any): Promise<boolean> => {
     try {
       const response = await fetch('/api/submit', {
         method: 'POST',
@@ -137,13 +137,16 @@ function JournalPageContent() {
 
       if (response.ok) {
         alert('Submitted successfully!');
+        return true;
       } else {
         const error = await response.json();
         alert(`Submission failed: ${error.error}`);
+        return false;
       }
     } catch (error) {
       console.error('Error submitting:', error);
       alert('Submission failed. Please try again.');
+      return false;
     }
   };
 

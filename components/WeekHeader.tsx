@@ -30,7 +30,7 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
   };
 
   return (
-    <div className="bg-emerald-100/14 border border-emerald-200/45 rounded-2xl p-6 mb-6 shadow-[0_0_0_1px_rgba(167,243,208,0.24),0_20px_50px_rgba(0,0,0,0.35)]">
+    <div className="bg-emerald-200/30 border border-emerald-100/80 rounded-2xl p-6 mb-6 shadow-[0_0_0_2px_rgba(167,243,208,0.35),0_20px_50px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-emerald-50">

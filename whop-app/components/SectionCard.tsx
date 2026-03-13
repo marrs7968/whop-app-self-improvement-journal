@@ -22,6 +22,7 @@ export function SectionCard({
   className = ''
 }: SectionCardProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const handleClear = () => {
     if (showClearConfirm) {
@@ -36,8 +37,22 @@ export function SectionCard({
     setShowClearConfirm(false);
   };
 
+  const handleSubmitClick = () => {
+    if (disabledSubmit) return;
+    if (showSubmitConfirm) {
+      onSubmit();
+      setShowSubmitConfirm(false);
+      return;
+    }
+    setShowSubmitConfirm(true);
+  };
+
+  const cancelSubmit = () => {
+    setShowSubmitConfirm(false);
+  };
+
   return (
-    <div className={`bg-emerald-100/14 border border-emerald-200/45 rounded-2xl p-6 shadow-[0_0_0_1px_rgba(167,243,208,0.24),0_20px_50px_rgba(0,0,0,0.35)] ${className}`}>
+    <div className={`bg-emerald-200/30 border border-emerald-100/80 rounded-2xl p-6 shadow-[0_0_0_2px_rgba(167,243,208,0.35),0_20px_50px_rgba(0,0,0,0.35)] ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold text-emerald-50">{title}</h3>
         
@@ -71,14 +86,28 @@ export function SectionCard({
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={disabledSubmit}
-          className="px-6 py-2 bg-emerald-700 border border-emerald-200/70 hover:bg-emerald-600 text-emerald-50 rounded-lg transition-all shadow-[0_8px_16px_rgba(6,78,59,0.45)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Submit
-        </button>
+        <div className="flex items-center gap-2">
+          {showSubmitConfirm && (
+            <span className="text-xs text-emerald-50/90">Are you sure?</span>
+          )}
+          {showSubmitConfirm && (
+            <button
+              type="button"
+              onClick={cancelSubmit}
+              className="px-3 py-2 bg-emerald-800 border border-emerald-200/70 hover:bg-emerald-700 text-emerald-50 rounded-lg transition-all shadow-[0_6px_14px_rgba(6,78,59,0.4)] active:translate-y-px active:shadow-none"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmitClick}
+            disabled={disabledSubmit}
+            className="px-6 py-2 bg-emerald-700 border border-emerald-200/70 hover:bg-emerald-600 text-emerald-50 rounded-lg transition-all shadow-[0_8px_16px_rgba(6,78,59,0.45)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {showSubmitConfirm ? 'Confirm Submit' : 'Submit'}
+          </button>
+        </div>
       </div>
     </div>
   );
