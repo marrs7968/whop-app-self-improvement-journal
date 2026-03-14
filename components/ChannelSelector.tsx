@@ -64,7 +64,7 @@ export function ChannelSelector({ value, onChange, disabled = false, experienceI
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full h-10 px-3 bg-zinc-800/90 border border-emerald-300/45 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:border-emerald-200/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-10 px-3 bg-zinc-800/90 border border-[#d8e4d8]/55 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#b7ccb8]/70 focus:border-[#d8e4d8]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="">Select a channel...</option>
         {channels.length === 0 && (

@@ -229,7 +229,7 @@ export function WeeklyWeighInSection({
                   onClick={() => updateData({ weightUnit: 'kg' })}
                   className={`px-3 py-2 text-sm font-medium transition-colors ${
                     data.weightUnit === 'kg'
-                      ? 'bg-emerald-400/35 text-emerald-50'
+                      ? 'bg-[#4f6b5a] text-white'
                       : 'bg-zinc-800/90 text-emerald-200 hover:bg-zinc-700'
                   }`}
                 >
@@ -240,7 +240,7 @@ export function WeeklyWeighInSection({
                   onClick={() => updateData({ weightUnit: 'lb' })}
                   className={`px-3 py-2 text-sm font-medium transition-colors border-l border-emerald-300/55 ${
                     data.weightUnit === 'lb'
-                      ? 'bg-emerald-400/35 text-emerald-50'
+                      ? 'bg-[#4f6b5a] text-white'
                       : 'bg-zinc-800/90 text-emerald-200 hover:bg-zinc-700'
                   }`}
                 >
