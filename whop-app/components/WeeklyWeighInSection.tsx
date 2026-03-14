@@ -48,6 +48,11 @@ function convertWeight(value: number, from: WeightUnit, to: WeightUnit): number 
   return value / 0.45359237;
 }
 
+function formatWeekLabel(weekStartISO: string): string {
+  const date = new Date(`${weekStartISO}T00:00:00`);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 export function WeeklyWeighInSection({ 
   weekStartISO, 
   userId,
@@ -176,19 +181,28 @@ export function WeeklyWeighInSection({
     ? Math.min(...sortedGraphPoints.map((p) => p.value))
     : 0;
   const range = Math.max(maxValue - minValue, 1);
-  const width = 520;
-  const height = 180;
-  const paddingX = 24;
-  const paddingY = 20;
+  const width = 560;
+  const height = 230;
+  const plotXMin = 56;
+  const plotXMax = width - 18;
+  const plotYMin = 16;
+  const plotYMax = height - 56;
+  const yTicks = 4;
+
+  const getX = (index: number) =>
+    sortedGraphPoints.length <= 1
+      ? (plotXMin + plotXMax) / 2
+      : plotXMin + (index * (plotXMax - plotXMin)) / (sortedGraphPoints.length - 1);
+
+  const getY = (value: number) => {
+    const normalizedY = (value - minValue) / range;
+    return plotYMax - normalizedY * (plotYMax - plotYMin);
+  };
+
   const polyline = sortedGraphPoints
     .map((point, index) => {
-      const x =
-        sortedGraphPoints.length <= 1
-          ? width / 2
-          : paddingX +
-            (index * (width - paddingX * 2)) / (sortedGraphPoints.length - 1);
-      const normalizedY = (point.value - minValue) / range;
-      const y = height - paddingY - normalizedY * (height - paddingY * 2);
+      const x = getX(index);
+      const y = getY(point.value);
       return `${x},${y}`;
     })
     .join(' ');
@@ -269,6 +283,46 @@ export function WeeklyWeighInSection({
                   role="img"
                   aria-label="Weight trend chart"
                 >
+                  <line
+                    x1={plotXMin}
+                    y1={plotYMin}
+                    x2={plotXMin}
+                    y2={plotYMax}
+                    stroke="rgba(214, 228, 216, 0.85)"
+                    strokeWidth="1.2"
+                  />
+                  <line
+                    x1={plotXMin}
+                    y1={plotYMax}
+                    x2={plotXMax}
+                    y2={plotYMax}
+                    stroke="rgba(214, 228, 216, 0.85)"
+                    strokeWidth="1.2"
+                  />
+                  {Array.from({ length: yTicks + 1 }, (_, index) => {
+                    const y = plotYMin + (index * (plotYMax - plotYMin)) / yTicks;
+                    const value = maxValue - (index * (maxValue - minValue)) / yTicks;
+                    return (
+                      <g key={`y-tick-${index}`}>
+                        <line
+                          x1={plotXMin}
+                          y1={y}
+                          x2={plotXMax}
+                          y2={y}
+                          stroke="rgba(214, 228, 216, 0.18)"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={plotXMin - 8}
+                          y={y + 3}
+                          textAnchor="end"
+                          className="fill-white/80 text-[10px]"
+                        >
+                          {value.toFixed(1)}
+                        </text>
+                      </g>
+                    );
+                  })}
                   <polyline
                     fill="none"
                     stroke="rgba(52, 211, 153, 0.9)"
@@ -276,15 +330,40 @@ export function WeeklyWeighInSection({
                     points={polyline}
                   />
                   {sortedGraphPoints.map((point, index) => {
-                    const x =
-                      sortedGraphPoints.length <= 1
-                        ? width / 2
-                        : paddingX +
-                          (index * (width - paddingX * 2)) / (sortedGraphPoints.length - 1);
-                    const normalizedY = (point.value - minValue) / range;
-                    const y = height - paddingY - normalizedY * (height - paddingY * 2);
+                    const x = getX(index);
+                    const y = getY(point.value);
                     return <circle key={`${point.weekStartISO}-${index}`} cx={x} cy={y} r="3.5" fill="#bbf7d0" />;
                   })}
+                  {sortedGraphPoints.map((point, index) => {
+                    const x = getX(index);
+                    return (
+                      <text
+                        key={`x-label-${point.weekStartISO}-${index}`}
+                        x={x}
+                        y={plotYMax + 14}
+                        textAnchor="middle"
+                        className="fill-white/75 text-[10px]"
+                      >
+                        {formatWeekLabel(point.weekStartISO)}
+                      </text>
+                    );
+                  })}
+                  <text
+                    x={plotXMin - 2}
+                    y={plotYMin - 4}
+                    textAnchor="start"
+                    className="fill-white/85 text-[10px]"
+                  >
+                    Weight ({data.weightUnit})
+                  </text>
+                  <text
+                    x={(plotXMin + plotXMax) / 2}
+                    y={height - 10}
+                    textAnchor="middle"
+                    className="fill-white/85 text-[10px]"
+                  >
+                    Week (M/D)
+                  </text>
                 </svg>
                 <p className="text-xs text-emerald-100/80">
                   Showing up to last 12 weeks in {data.weightUnit}.

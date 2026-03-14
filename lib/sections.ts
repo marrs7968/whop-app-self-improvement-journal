@@ -39,8 +39,7 @@ export const sections: SectionConfig[] = [
     promptTemplate:
 `What did I improve this week?
 Where did I fail to meet the standard? Where did I fall short?
-What's my strategic correction moving forward?
-How did I help the people inside Crusadia?`
+What's my strategic correction moving forward?`
   }
 ];
 
