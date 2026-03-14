@@ -5,6 +5,7 @@ import { postToChannel } from '@/lib/whop';
 import { canSubmitSection } from '@/lib/sections';
 import { prisma } from '@/lib/prisma';
 import { resolveTenantContext } from '@/lib/tenant-context';
+import { deserializeWeighInText, formatWeighInChatMessage, serializeWeighInData, type WeightUnit } from '@/lib/weighIn';
 
 async function ensureUser(userId: string, whopUserId: string) {
   await prisma.user.upsert({
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const body = await request.json();
-    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId } = body;
+    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId, weightValue, weightUnit } = body;
 
     if (!weekStartISO || !sectionKey) {
       return NextResponse.json(
@@ -85,9 +86,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedWeight =
+      typeof weightValue === 'number'
+        ? weightValue
+        : typeof weightValue === 'string' && weightValue.trim() !== ''
+        ? parseFloat(weightValue)
+        : null;
+    const normalizedWeightUnit: WeightUnit = weightUnit === 'kg' ? 'kg' : 'lb';
+    const notes = text || '';
+    const storedText =
+      sectionKey === 'weigh-in'
+        ? serializeWeighInData({
+            notes,
+            weightValue: Number.isFinite(normalizedWeight as number) ? (normalizedWeight as number) : null,
+            weightUnit: normalizedWeightUnit,
+          })
+        : notes;
+    const chatText =
+      sectionKey === 'weigh-in'
+        ? formatWeighInChatMessage({
+            submittedAt: new Date(),
+            notes,
+            weightValue: Number.isFinite(normalizedWeight as number) ? (normalizedWeight as number) : null,
+            weightUnit: normalizedWeightUnit,
+          })
+        : notes;
+
     // Post to Whop channel
     try {
-      await postToChannel(channelId, text || '', mediaIds || []);
+      await postToChannel(channelId, chatText || '', mediaIds || []);
     } catch (error) {
       console.error('Error posting to channel:', error);
       return NextResponse.json(
@@ -105,7 +132,7 @@ export async function POST(request: NextRequest) {
         weekStartISO,
         sectionKey,
         dayIndex: normalizedDayIndex,
-        text: text || '',
+        text: storedText,
         mediaIds: JSON.stringify(mediaIds || []),
         channelId,
       },
@@ -115,6 +142,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       submission: {
         ...submissionData,
+        ...(sectionKey === 'weigh-in' ? deserializeWeighInText(submissionData.text || '') : {}),
         mediaIds: mediaIds || [],
       }
     });

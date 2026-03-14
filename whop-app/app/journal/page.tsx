@@ -15,6 +15,8 @@ interface DraftPayload {
   text?: string;
   mediaIds?: string[];
   channelId?: string | null;
+  weightValue?: number | null;
+  weightUnit?: 'lb' | 'kg';
 }
 
 function JournalPageContent() {
@@ -33,7 +35,13 @@ function JournalPageContent() {
       channelId: ''
     }))
   );
-  const [weighInDraft, setWeighInDraft] = useState({ text: '', mediaIds: [] as string[], channelId: '' });
+  const [weighInDraft, setWeighInDraft] = useState({
+    text: '',
+    mediaIds: [] as string[],
+    channelId: '',
+    weightValue: null as number | null,
+    weightUnit: 'lb' as 'lb' | 'kg',
+  });
   const [reflectionDraft, setReflectionDraft] = useState({ text: '', mediaIds: [] as string[], channelId: '' });
   const [submittedDailyByDay, setSubmittedDailyByDay] = useState<boolean[]>(Array.from({ length: 7 }, () => false));
   const [submittedWeighIn, setSubmittedWeighIn] = useState(false);
@@ -71,7 +79,13 @@ function JournalPageContent() {
           mediaIds: [] as string[],
           channelId: ''
         }));
-        const weighIn = { text: '', mediaIds: [] as string[], channelId: '' };
+        const weighIn = {
+          text: '',
+          mediaIds: [] as string[],
+          channelId: '',
+          weightValue: null as number | null,
+          weightUnit: 'lb' as 'lb' | 'kg',
+        };
         const reflection = { text: '', mediaIds: [] as string[], channelId: '' };
 
         for (const draft of drafts) {
@@ -86,6 +100,8 @@ function JournalPageContent() {
             weighIn.text = draft.text || '';
             weighIn.mediaIds = draft.mediaIds || [];
             weighIn.channelId = draft.channelId || '';
+            weighIn.weightValue = typeof draft.weightValue === 'number' ? draft.weightValue : null;
+            weighIn.weightUnit = draft.weightUnit === 'kg' ? 'kg' : 'lb';
           } else if (draft.sectionKey === 'reflection') {
             reflection.text = draft.text || '';
             reflection.mediaIds = draft.mediaIds || [];
@@ -247,7 +263,7 @@ function JournalPageContent() {
             submitted={submittedReflection}
             draft={reflectionDraft}
             canSubmit={canSubmitReflection}
-            submitDisabledReason={!canSubmitReflection ? "Available on weekends only" : undefined}
+            submitDisabledReason={undefined}
             onSaveDraft={(data) => handleSaveDraft('reflection', null, data)}
             onSubmit={(data) => handleSubmit('reflection', null, data)}
           />

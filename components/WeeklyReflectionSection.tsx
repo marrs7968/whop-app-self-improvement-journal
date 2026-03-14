@@ -83,7 +83,7 @@ export function WeeklyReflectionSection({
       submitDisabledReason={
         submitted
           ? 'Already submitted for this week.'
-          : (submitDisabledReason || 'Available on weekends only')
+          : submitDisabledReason
       }
     >
       <div className="space-y-4">

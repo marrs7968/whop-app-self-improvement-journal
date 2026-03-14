@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
 import { prisma } from '@/lib/prisma';
 import { resolveTenantContext } from '@/lib/tenant-context';
+import { deserializeWeighInText, serializeWeighInData, type WeightUnit } from '@/lib/weighIn';
 
 function parseMediaIds(value: string | null | undefined): string[] {
   if (!value) return [];
@@ -55,10 +56,20 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      drafts.map((draft) => ({
-        ...draft,
-        mediaIds: parseMediaIds(draft.mediaIds),
-      }))
+      drafts.map((draft) => {
+        const parsed = draft.sectionKey === 'weigh-in' ? deserializeWeighInText(draft.text || '') : null;
+        return {
+          ...draft,
+          ...(parsed
+            ? {
+                text: parsed.notes,
+                weightValue: parsed.weightValue,
+                weightUnit: parsed.weightUnit,
+              }
+            : {}),
+          mediaIds: parseMediaIds(draft.mediaIds),
+        };
+      })
     );
   } catch (error) {
     console.error('Error fetching drafts:', error);
@@ -76,7 +87,7 @@ export async function POST(request: NextRequest) {
     const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
     
     const body = await request.json();
-    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId } = body;
+    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId, weightValue, weightUnit } = body;
 
     if (!weekStartISO || !sectionKey) {
       return NextResponse.json(
@@ -99,11 +110,27 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
+    const normalizedWeight =
+      typeof weightValue === 'number'
+        ? weightValue
+        : typeof weightValue === 'string' && weightValue.trim() !== ''
+        ? parseFloat(weightValue)
+        : null;
+    const normalizedWeightUnit: WeightUnit = weightUnit === 'kg' ? 'kg' : 'lb';
+    const storedText =
+      sectionKey === 'weigh-in'
+        ? serializeWeighInData({
+            notes: text || '',
+            weightValue: Number.isFinite(normalizedWeight as number) ? (normalizedWeight as number) : null,
+            weightUnit: normalizedWeightUnit,
+          })
+        : (text || '');
+
     const draftData = existing
       ? await prisma.draft.update({
           where: { id: existing.id },
           data: {
-            text: text || '',
+            text: storedText,
             mediaIds: JSON.stringify(mediaIds || []),
             channelId: channelId || null,
           },
@@ -114,14 +141,23 @@ export async function POST(request: NextRequest) {
             weekStartISO,
             sectionKey,
             dayIndex: normalizedDayIndex,
-            text: text || '',
+            text: storedText,
             mediaIds: JSON.stringify(mediaIds || []),
             channelId: channelId || null,
           },
         });
 
+    const parsed = sectionKey === 'weigh-in' ? deserializeWeighInText(draftData.text || '') : null;
+
     return NextResponse.json({
       ...draftData,
+      ...(parsed
+        ? {
+            text: parsed.notes,
+            weightValue: parsed.weightValue,
+            weightUnit: parsed.weightUnit,
+          }
+        : {}),
       mediaIds: parseMediaIds(draftData.mediaIds),
     });
   } catch (error) {

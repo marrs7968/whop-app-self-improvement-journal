@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
+import { deserializeWeighInText, serializeWeighInData, type WeightUnit } from '@/lib/weighIn';
 
 // Mock database for now (replace with Prisma when database is working)
 const mockDrafts: Record<string, any[]> = {};
@@ -34,7 +35,18 @@ export async function GET(request: NextRequest) {
       filteredDrafts = filteredDrafts.filter(draft => draft.dayIndex === dayIndexNum);
     }
 
-    return NextResponse.json(filteredDrafts);
+    return NextResponse.json(
+      filteredDrafts.map((draft) => {
+        if (draft.sectionKey !== 'weigh-in') return draft;
+        const parsed = deserializeWeighInText(draft.text);
+        return {
+          ...draft,
+          text: parsed.notes,
+          weightValue: parsed.weightValue,
+          weightUnit: parsed.weightUnit,
+        };
+      })
+    );
   } catch (error) {
     console.error('Error fetching drafts:', error);
     return NextResponse.json(
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await whopSdk.verifyUserToken(headersList);
     
     const body = await request.json();
-    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId } = body;
+    const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId, weightValue, weightUnit } = body;
 
     if (!weekStartISO || !sectionKey) {
       return NextResponse.json(
@@ -70,13 +82,29 @@ export async function POST(request: NextRequest) {
                draft.dayIndex === dayIndex
     );
 
+    const normalizedWeight =
+      typeof weightValue === 'number'
+        ? weightValue
+        : typeof weightValue === 'string' && weightValue.trim() !== ''
+        ? parseFloat(weightValue)
+        : null;
+    const normalizedWeightUnit: WeightUnit = weightUnit === 'kg' ? 'kg' : 'lb';
+    const storedText =
+      sectionKey === 'weigh-in'
+        ? serializeWeighInData({
+            notes: text || '',
+            weightValue: Number.isFinite(normalizedWeight as number) ? (normalizedWeight as number) : null,
+            weightUnit: normalizedWeightUnit,
+          })
+        : (text || '');
+
     const draftData = {
       id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId,
       weekStartISO,
       sectionKey,
       dayIndex: dayIndex || null,
-      text: text || '',
+      text: storedText,
       mediaIds: JSON.stringify(mediaIds || []),
       channelId: channelId || null,
       updatedAt: new Date().toISOString()
@@ -86,6 +114,16 @@ export async function POST(request: NextRequest) {
       mockDrafts[userId][existingDraftIndex] = draftData;
     } else {
       mockDrafts[userId].push(draftData);
+    }
+
+    if (sectionKey === 'weigh-in') {
+      const parsed = deserializeWeighInText(draftData.text);
+      return NextResponse.json({
+        ...draftData,
+        text: parsed.notes,
+        weightValue: parsed.weightValue,
+        weightUnit: parsed.weightUnit,
+      });
     }
 
     return NextResponse.json(draftData);
@@ -136,4 +174,5 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
 

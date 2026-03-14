@@ -36,9 +36,6 @@ export const sections: SectionConfig[] = [
   {
     key: "reflection",
     title: "Weekly Reflection",
-    rules: {
-      canSubmit: ({ weekday }) => [6, 0].includes(weekday) // Sat (6) or Sun(0)
-    },
     promptTemplate:
 `What did I improve this week?
 Where did I fail to meet the standard? Where did I fall short?

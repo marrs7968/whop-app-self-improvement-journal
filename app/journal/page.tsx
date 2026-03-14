@@ -47,7 +47,13 @@ function JournalPageContent() {
     channelId: ''
   }));
 
-  const weighInDraft = { text: '', mediaIds: [], channelId: '' };
+  const weighInDraft = {
+    text: '',
+    mediaIds: [],
+    channelId: '',
+    weightValue: null as number | null,
+    weightUnit: 'lb' as 'lb' | 'kg',
+  };
   const reflectionDraft = { text: '', mediaIds: [], channelId: '' };
 
   useEffect(() => {
@@ -193,7 +199,7 @@ function JournalPageContent() {
             submitted={submittedReflection}
             draft={reflectionDraft}
             canSubmit={canSubmitReflection}
-            submitDisabledReason={!canSubmitReflection ? "Available on weekends only" : undefined}
+            submitDisabledReason={undefined}
             onSaveDraft={(data) => handleSaveDraft('reflection', null, data)}
             onSubmit={(data) => handleSubmit('reflection', null, data)}
           />
