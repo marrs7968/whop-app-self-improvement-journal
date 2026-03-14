@@ -37,9 +37,9 @@ export const sections: SectionConfig[] = [
     key: "reflection",
     title: "Weekly Reflection",
     promptTemplate:
-`What did I improve this week?
-Where did I fail to meet the standard? Where did I fall short?
-What's my strategic correction moving forward?`
+`- What did I improve this week?
+- Where did I fall short?
+- What's my strategic correction moving forward?`
   }
 ];
 
