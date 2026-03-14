@@ -54,7 +54,7 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
   }, [weekStartISO]);
 
   return (
-    <div className="bg-[#b7ccb8]/40 border border-[#d8e4d8]/70 rounded-2xl p-6 mb-6 shadow-[0_0_0_2px_rgba(183,204,184,0.5),0_18px_44px_rgba(0,0,0,0.38)] space-y-4">
+    <div className="bg-[#9eb59f]/42 border border-[#c6d4c7]/72 rounded-2xl p-6 mb-6 shadow-[0_0_0_2px_rgba(158,181,159,0.5),0_18px_44px_rgba(0,0,0,0.38)] space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">
@@ -72,14 +72,14 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
           <div className="flex items-center gap-4">
             <button
               onClick={goToPreviousWeek}
-              className="px-4 py-2 bg-[#4f6b5a] border border-[#d8e4d8]/75 hover:bg-[#5f7f69] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
+              className="px-4 py-2 bg-[#456f57] border border-[#c6d4c7]/78 hover:bg-[#538267] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
               aria-label="Previous week"
             >
               ← Prev
             </button>
             <button
               onClick={goToNextWeek}
-              className="px-4 py-2 bg-[#4f6b5a] border border-[#d8e4d8]/75 hover:bg-[#5f7f69] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
+              className="px-4 py-2 bg-[#456f57] border border-[#c6d4c7]/78 hover:bg-[#538267] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
               aria-label="Next week"
             >
               Next →
@@ -88,7 +88,7 @@ export function WeekHeader({ userName, weekStartISO }: WeekHeaderProps) {
         </div>
       </div>
       {quote && (
-        <div className="bg-[#d5e4d7]/30 border border-[#d8e4d8]/75 rounded-lg px-3 py-2">
+        <div className="bg-[#c3d4c5]/34 border border-[#c6d4c7]/78 rounded-lg px-3 py-2">
           <p className="text-xs italic text-white/95">
             "{quote.quote}" - {quote.author}
           </p>

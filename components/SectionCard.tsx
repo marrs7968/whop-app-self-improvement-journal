@@ -52,7 +52,7 @@ export function SectionCard({
   };
 
   return (
-    <div className={`bg-[#b7ccb8]/40 border border-[#d8e4d8]/70 rounded-2xl p-6 shadow-[0_0_0_2px_rgba(183,204,184,0.5),0_18px_44px_rgba(0,0,0,0.38)] ${className}`}>
+    <div className={`bg-[#9eb59f]/42 border border-[#c6d4c7]/72 rounded-2xl p-6 shadow-[0_0_0_2px_rgba(158,181,159,0.5),0_18px_44px_rgba(0,0,0,0.38)] ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold text-white">{title}</h3>
         
@@ -67,11 +67,11 @@ export function SectionCard({
         {children}
       </div>
 
-      <div className="flex items-center justify-between pt-4 border-t border-[#d8e4d8]/45">
+      <div className="flex items-center justify-between pt-4 border-t border-[#c6d4c7]/50">
         <button
           type="button"
           onClick={handleClear}
-          className="px-4 py-2 bg-[#4f6b5a] border border-[#d8e4d8]/75 hover:bg-[#5f7f69] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
+          className="px-4 py-2 bg-[#456f57] border border-[#c6d4c7]/78 hover:bg-[#538267] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
         >
           {showClearConfirm ? 'Confirm Clear' : 'Clear'}
         </button>
@@ -80,7 +80,7 @@ export function SectionCard({
           <button
             type="button"
             onClick={cancelClear}
-            className="px-4 py-2 bg-[#3f5547] border border-[#d8e4d8]/75 hover:bg-[#4f6b5a] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none ml-2"
+            className="px-4 py-2 bg-[#355443] border border-[#c6d4c7]/78 hover:bg-[#456f57] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none ml-2"
           >
             Cancel
           </button>
@@ -94,7 +94,7 @@ export function SectionCard({
             <button
               type="button"
               onClick={cancelSubmit}
-              className="px-3 py-2 bg-[#3f5547] border border-[#d8e4d8]/75 hover:bg-[#4f6b5a] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
+              className="px-3 py-2 bg-[#355443] border border-[#c6d4c7]/78 hover:bg-[#456f57] text-white rounded-lg transition-all shadow-[0_6px_14px_rgba(20,46,34,0.45)] active:translate-y-px active:shadow-none"
             >
               Cancel
             </button>
@@ -103,7 +103,7 @@ export function SectionCard({
             type="button"
             onClick={handleSubmitClick}
             disabled={disabledSubmit}
-            className="px-6 py-2 bg-[#4f6b5a] border border-[#d8e4d8]/75 hover:bg-[#5f7f69] text-white rounded-lg transition-all shadow-[0_8px_16px_rgba(20,46,34,0.5)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-[#456f57] border border-[#c6d4c7]/78 hover:bg-[#538267] text-white rounded-lg transition-all shadow-[0_8px_16px_rgba(20,46,34,0.5)] active:translate-y-px active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {showSubmitConfirm ? 'Confirm Submit' : 'Submit'}
           </button>
