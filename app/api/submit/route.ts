@@ -3,18 +3,16 @@ import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
 import { postToChannel } from '@/lib/whop';
 import { canSubmitSection } from '@/lib/sections';
+import { prisma } from '@/lib/prisma';
+import { resolveTenantContext } from '@/lib/tenant-context';
+import { ensureUser } from '@/lib/journal-store';
 import { deserializeWeighInText, formatWeighInChatMessage, serializeWeighInData, type WeightUnit } from '@/lib/weighIn';
-
-// Mock database for submissions (replace with Prisma when database is working)
-const mockSubmissions: Record<string, any[]> = {};
-// Expose for the lightweight trend endpoint in root-path deployments.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).__mockSubmissions = mockSubmissions;
 
 export async function GET(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
 
     const { searchParams } = new URL(request.url);
     const weekStartISO = searchParams.get('weekStartISO');
@@ -26,16 +24,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const submissions = (mockSubmissions[userId] || []).filter(
-      (submission) => submission.weekStartISO === weekStartISO
-    );
+    const submissions = await prisma.submission.findMany({
+      where: {
+        userId: context.scopedUserId,
+        weekStartISO,
+      },
+      select: {
+        sectionKey: true,
+        dayIndex: true,
+      },
+    });
 
-    return NextResponse.json(
-      submissions.map((submission) => ({
-        sectionKey: submission.sectionKey,
-        dayIndex: submission.dayIndex ?? null,
-      }))
-    );
+    return NextResponse.json(submissions);
   } catch (error) {
     console.error('Error fetching submissions:', error);
     return NextResponse.json(
@@ -48,8 +48,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
-    
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
+
     const body = await request.json();
     const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId, weightValue, weightUnit } = body;
 
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
         ? parseFloat(weightValue)
         : null;
     const normalizedWeightUnit: WeightUnit = weightUnit === 'kg' ? 'kg' : 'lb';
-    const notes = text || '';
+    const notes = typeof text === 'string' ? text : '';
     const storedText =
       sectionKey === 'weigh-in'
         ? serializeWeighInData({
@@ -112,32 +113,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create submission record
-    const submissionData = {
-      id: `submission_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId,
-      weekStartISO,
-      sectionKey,
-      dayIndex: dayIndex || null,
-      text: storedText,
-      mediaIds: JSON.stringify(mediaIds || []),
-      channelId,
-      submittedAt: new Date().toISOString()
-    };
+    await ensureUser({
+      scopedUserId: context.scopedUserId,
+      whopUserId: context.userId,
+      companyId: context.companyId,
+      experienceId: context.experienceId,
+    });
 
-    if (!mockSubmissions[userId]) {
-      mockSubmissions[userId] = [];
-    }
-    mockSubmissions[userId].push(submissionData);
+    const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
+    const submissionData = await prisma.submission.create({
+      data: {
+        userId: context.scopedUserId,
+        companyId: context.companyId ?? null,
+        experienceId: context.experienceId ?? null,
+        weekStartISO,
+        sectionKey,
+        dayIndex: normalizedDayIndex,
+        text: storedText,
+        mediaIds: JSON.stringify(mediaIds || []),
+        channelId,
+      },
+    });
 
     return NextResponse.json({ 
       success: true, 
-      submission: sectionKey === 'weigh-in'
-        ? {
-            ...submissionData,
-            ...deserializeWeighInText(submissionData.text),
-          }
-        : submissionData
+      submission: {
+        ...submissionData,
+        ...(sectionKey === 'weigh-in' ? deserializeWeighInText(submissionData.text || '') : {}),
+        mediaIds: mediaIds || [],
+      },
     });
   } catch (error) {
     console.error('Error submitting:', error);
@@ -147,5 +151,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

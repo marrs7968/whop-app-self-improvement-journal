@@ -14,18 +14,26 @@ datasource db {
 model User {
   id           String   @id
   name         String?
-  whopUserId   String   @unique
+  whopUserId   String
+  companyId    String?
+  experienceId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   Drafts       Draft[]
   Submissions  Submission[]
+  ChallengeParticipant ChallengeParticipant[]
+  ChallengeProof       ChallengeProof[]
 
+  @@index([whopUserId])
+  @@index([companyId])
   @@map("users")
 }
 
 model Draft {
   id           String   @id @default(cuid())
   userId       String
+  companyId    String?
+  experienceId String?
   weekStartISO String   // ISO date for the Sunday that starts the week
   sectionKey   String   // e.g., "daily-rent", "weigh-in", "reflection"
   dayIndex     Int?     // 0..6 for Daily Rent sub-sections; null otherwise
@@ -37,12 +45,15 @@ model Draft {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStartISO, sectionKey, dayIndex])
+  @@index([companyId, weekStartISO, sectionKey])
   @@map("drafts")
 }
 
 model Submission {
   id           String   @id @default(cuid())
   userId       String
+  companyId    String?
+  experienceId String?
   weekStartISO String
   sectionKey   String
   dayIndex     Int?
@@ -53,5 +64,154 @@ model Submission {
 
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, submittedAt])
+  @@index([companyId, sectionKey, submittedAt])
   @@map("submissions")
+}
+
+enum ChallengeCadence {
+  DAILY
+  SPRINT
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum NotificationType {
+  DAILY_CHALLENGE_REMINDER
+  SPRINT_MILESTONE_REMINDER
+  REENGAGEMENT
+  CONSISTENCY_LEADERBOARD
+}
+
+enum NotificationTargetType {
+  CHANNEL
+  USER
+}
+
+model CreatorDashboardConfig {
+  id                       String   @id @default(cuid())
+  companyId                String   @unique
+  defaultChannelId         String?
+  reengagementInactiveDays Int      @default(14)
+  reengagementCooldownDays Int      @default(7)
+  leaderboardIntervalMonths Int     @default(2)
+  leaderboardTopN          Int      @default(3)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("creator_dashboard_configs")
+}
+
+model Challenge {
+  id             String           @id @default(cuid())
+  companyId      String
+  experienceId   String?
+  createdByUserId String
+  title          String
+  topic          String
+  cadence        ChallengeCadence
+  durationDays   Int
+  startsAt       DateTime
+  endsAt         DateTime
+  reminderHourUtc Int?
+  channelId      String
+  status         ChallengeStatus  @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  participants   ChallengeParticipant[]
+  proofs         ChallengeProof[]
+  jobs           NotificationJob[]
+
+  @@index([companyId, status, startsAt])
+  @@map("challenges")
+}
+
+model ChallengeParticipant {
+  id            String    @id @default(cuid())
+  challengeId   String
+  userId        String
+  joinedAt      DateTime  @default(now())
+  lastProofAt   DateTime?
+  isActive      Boolean   @default(true)
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([userId, isActive])
+  @@map("challenge_participants")
+}
+
+model ChallengeProof {
+  id           String    @id @default(cuid())
+  challengeId  String
+  userId       String
+  proofText    String?
+  mediaIds     String    @default("[]")
+  submittedAt  DateTime  @default(now())
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId, submittedAt])
+  @@index([userId, submittedAt])
+  @@map("challenge_proofs")
+}
+
+model NotificationJob {
+  id             String           @id @default(cuid())
+  type           NotificationType
+  companyId      String
+  experienceId   String?
+  challengeId    String?
+  windowStart    DateTime?
+  windowEnd      DateTime?
+  scheduledFor   DateTime
+  runAt          DateTime?
+  status         String           @default("pending")
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  challenge      Challenge?       @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, type, scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("notification_jobs")
+}
+
+model NotificationDelivery {
+  id               String                 @id @default(cuid())
+  notificationType NotificationType
+  companyId        String
+  challengeId      String?
+  targetType       NotificationTargetType
+  targetId         String
+  userId           String?
+  dedupeKey        String                 @unique
+  status           String                 @default("sent")
+  errorMessage     String?
+  payload          Json?
+  sentAt           DateTime               @default(now())
+
+  @@index([companyId, notificationType, sentAt])
+  @@index([challengeId, sentAt])
+  @@map("notification_deliveries")
+}
+
+model UserEngagementDaily {
+  id              String   @id @default(cuid())
+  companyId       String
+  userId          String
+  dateISO         String
+  dailyCount      Int      @default(0)
+  reflectionCount Int      @default(0)
+  weighInCount    Int      @default(0)
+  totalCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, userId, dateISO])
+  @@index([companyId, dateISO])
+  @@map("user_engagement_daily")
 }

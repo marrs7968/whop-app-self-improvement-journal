@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
+import { prisma } from '@/lib/prisma';
+import { resolveTenantContext } from '@/lib/tenant-context';
+import { ensureUser, parseMediaIds } from '@/lib/journal-store';
 import { deserializeWeighInText, serializeWeighInData, type WeightUnit } from '@/lib/weighIn';
-
-// Mock database for now (replace with Prisma when database is working)
-const mockDrafts: Record<string, any[]> = {};
 
 export async function GET(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
-    
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
+
     const { searchParams } = new URL(request.url);
     const weekStartISO = searchParams.get('weekStartISO');
     const sectionKey = searchParams.get('sectionKey');
@@ -23,27 +24,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userDrafts = mockDrafts[userId] || [];
-    let filteredDrafts = userDrafts.filter(draft => draft.weekStartISO === weekStartISO);
-
-    if (sectionKey) {
-      filteredDrafts = filteredDrafts.filter(draft => draft.sectionKey === sectionKey);
-    }
-
-    if (dayIndex !== null) {
-      const dayIndexNum = parseInt(dayIndex);
-      filteredDrafts = filteredDrafts.filter(draft => draft.dayIndex === dayIndexNum);
-    }
+    const dayIndexFilter = dayIndex !== null ? parseInt(dayIndex, 10) : undefined;
+    const drafts = await prisma.draft.findMany({
+      where: {
+        userId: context.scopedUserId,
+        weekStartISO,
+        ...(sectionKey ? { sectionKey } : {}),
+        ...(dayIndexFilter !== undefined && !Number.isNaN(dayIndexFilter) ? { dayIndex: dayIndexFilter } : {}),
+      },
+      orderBy: [{ sectionKey: 'asc' }, { dayIndex: 'asc' }],
+    });
 
     return NextResponse.json(
-      filteredDrafts.map((draft) => {
-        if (draft.sectionKey !== 'weigh-in') return draft;
-        const parsed = deserializeWeighInText(draft.text);
+      drafts.map((draft) => {
+        const parsed = draft.sectionKey === 'weigh-in' ? deserializeWeighInText(draft.text || '') : null;
         return {
           ...draft,
-          text: parsed.notes,
-          weightValue: parsed.weightValue,
-          weightUnit: parsed.weightUnit,
+          ...(parsed
+            ? {
+                text: parsed.notes,
+                weightValue: parsed.weightValue,
+                weightUnit: parsed.weightUnit,
+              }
+            : {}),
+          mediaIds: parseMediaIds(draft.mediaIds),
         };
       })
     );
@@ -59,8 +63,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
-    
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
+
     const body = await request.json();
     const { weekStartISO, sectionKey, dayIndex, text, mediaIds, channelId, weightValue, weightUnit } = body;
 
@@ -71,16 +76,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!mockDrafts[userId]) {
-      mockDrafts[userId] = [];
-    }
+    await ensureUser({
+      scopedUserId: context.scopedUserId,
+      whopUserId: context.userId,
+      companyId: context.companyId,
+      experienceId: context.experienceId,
+    });
 
-    // Find existing draft
-    const existingDraftIndex = mockDrafts[userId].findIndex(
-      draft => draft.weekStartISO === weekStartISO && 
-               draft.sectionKey === sectionKey && 
-               draft.dayIndex === dayIndex
-    );
+    const normalizedDayIndex = typeof dayIndex === 'number' ? dayIndex : dayIndex ? parseInt(dayIndex, 10) : null;
+    const existing = await prisma.draft.findFirst({
+      where: {
+        userId: context.scopedUserId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: normalizedDayIndex,
+      },
+      select: { id: true },
+    });
 
     const normalizedWeight =
       typeof weightValue === 'number'
@@ -89,44 +101,52 @@ export async function POST(request: NextRequest) {
         ? parseFloat(weightValue)
         : null;
     const normalizedWeightUnit: WeightUnit = weightUnit === 'kg' ? 'kg' : 'lb';
+    const notesText = typeof text === 'string' ? text : '';
     const storedText =
       sectionKey === 'weigh-in'
         ? serializeWeighInData({
-            notes: text || '',
+            notes: notesText,
             weightValue: Number.isFinite(normalizedWeight as number) ? (normalizedWeight as number) : null,
             weightUnit: normalizedWeightUnit,
           })
-        : (text || '');
+        : notesText;
 
-    const draftData = {
-      id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId,
-      weekStartISO,
-      sectionKey,
-      dayIndex: dayIndex || null,
-      text: storedText,
-      mediaIds: JSON.stringify(mediaIds || []),
-      channelId: channelId || null,
-      updatedAt: new Date().toISOString()
-    };
+    const draftData = existing
+      ? await prisma.draft.update({
+          where: { id: existing.id },
+          data: {
+            text: storedText,
+            mediaIds: JSON.stringify(mediaIds || []),
+            channelId: channelId || null,
+          },
+        })
+      : await prisma.draft.create({
+          data: {
+            userId: context.scopedUserId,
+            companyId: context.companyId ?? null,
+            experienceId: context.experienceId ?? null,
+            weekStartISO,
+            sectionKey,
+            dayIndex: normalizedDayIndex,
+            text: storedText,
+            mediaIds: JSON.stringify(mediaIds || []),
+            channelId: channelId || null,
+          },
+        });
 
-    if (existingDraftIndex >= 0) {
-      mockDrafts[userId][existingDraftIndex] = draftData;
-    } else {
-      mockDrafts[userId].push(draftData);
-    }
+    const parsed = sectionKey === 'weigh-in' ? deserializeWeighInText(draftData.text || '') : null;
 
-    if (sectionKey === 'weigh-in') {
-      const parsed = deserializeWeighInText(draftData.text);
-      return NextResponse.json({
-        ...draftData,
-        text: parsed.notes,
-        weightValue: parsed.weightValue,
-        weightUnit: parsed.weightUnit,
-      });
-    }
-
-    return NextResponse.json(draftData);
+    return NextResponse.json({
+      ...draftData,
+      ...(parsed
+        ? {
+            text: parsed.notes,
+            weightValue: parsed.weightValue,
+            weightUnit: parsed.weightUnit,
+          }
+        : {}),
+      mediaIds: parseMediaIds(draftData.mediaIds),
+    });
   } catch (error) {
     console.error('Error saving draft:', error);
     return NextResponse.json(
@@ -139,8 +159,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
-    
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
+
     const { searchParams } = new URL(request.url);
     const weekStartISO = searchParams.get('weekStartISO');
     const sectionKey = searchParams.get('sectionKey');
@@ -153,17 +174,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!mockDrafts[userId]) {
-      return NextResponse.json({ success: true });
-    }
-
-    const dayIndexNum = dayIndex ? parseInt(dayIndex) : null;
-    
-    mockDrafts[userId] = mockDrafts[userId].filter(
-      draft => !(draft.weekStartISO === weekStartISO && 
-                 draft.sectionKey === sectionKey && 
-                 draft.dayIndex === dayIndexNum)
-    );
+    const dayIndexNum = dayIndex ? parseInt(dayIndex, 10) : null;
+    await prisma.draft.deleteMany({
+      where: {
+        userId: context.scopedUserId,
+        weekStartISO,
+        sectionKey,
+        dayIndex: dayIndexNum,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -174,5 +193,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-
-

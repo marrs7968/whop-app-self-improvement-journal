@@ -1,5 +1,6 @@
 import { whopSdk } from "@/lib/whop-sdk";
 import { headers } from "next/headers";
+import { CreatorDashboardClient } from "./CreatorDashboardClient";
 
 export default async function DashboardPage({
 	params,
@@ -28,19 +29,27 @@ export default async function DashboardPage({
 	// 'no_access' means the user is not an authorized member of the company
 	const { accessLevel } = result;
 
+	if (!result.hasAccess) {
+		return (
+			<div className="flex justify-center items-center h-screen px-8">
+				<h1 className="text-xl text-zinc-100">
+					Hi <strong>{user.name}</strong>, you do not have access to this company dashboard.
+				</h1>
+			</div>
+		);
+	}
+
 	return (
-		<div className="flex justify-center items-center h-screen px-8">
-			<h1 className="text-xl">
-				Hi <strong>{user.name}</strong>, you{" "}
-				<strong>{result.hasAccess ? "have" : "do not have"} access</strong> to
-				this company. Your access level to this company is:{" "}
-				<strong>{accessLevel}</strong>. <br />
-				<br />
-				Your user ID is <strong>{userId}</strong> and your username is{" "}
-				<strong>@{user.username}</strong>.<br />
-				<br />
-				You are viewing the company: <strong>{company.title}</strong>
-			</h1>
+		<div className="min-h-screen bg-zinc-900 text-zinc-100">
+			<div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+				<div>
+					<h1 className="text-2xl font-semibold text-emerald-100">Creator Dashboard</h1>
+					<p className="text-sm text-emerald-100/75">
+						{company.title} - access level: {accessLevel}
+					</p>
+				</div>
+				<CreatorDashboardClient />
+			</div>
 		</div>
 	);
 }

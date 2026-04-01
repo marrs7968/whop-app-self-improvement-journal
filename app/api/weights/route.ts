@@ -1,24 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { whopSdk } from '@/lib/whop-sdk';
+import { prisma } from '@/lib/prisma';
+import { resolveTenantContext } from '@/lib/tenant-context';
 import { deserializeWeighInText } from '@/lib/weighIn';
 
-// Shares mock store with submit route behavior in root path deployments.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const globalThis: any;
-const rootMockSubmissions: Record<string, any[]> = globalThis.__mockSubmissions ?? {};
-if (!globalThis.__mockSubmissions) {
-  globalThis.__mockSubmissions = rootMockSubmissions;
-}
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const headersList = await headers();
-    const { userId } = await whopSdk.verifyUserToken(headersList);
+    const tokenPayload = await whopSdk.verifyUserToken(headersList);
+    const context = resolveTenantContext(tokenPayload as unknown as Record<string, unknown>);
 
-    const submissions = (rootMockSubmissions[userId] || [])
-      .filter((entry) => entry.sectionKey === 'weigh-in')
-      .sort((a, b) => String(a.weekStartISO).localeCompare(String(b.weekStartISO)));
+    const submissions = await prisma.submission.findMany({
+      where: {
+        userId: context.scopedUserId,
+        sectionKey: 'weigh-in',
+      },
+      select: {
+        weekStartISO: true,
+        text: true,
+      },
+      orderBy: {
+        weekStartISO: 'asc',
+      },
+    });
 
     const points = submissions
       .map((entry) => {
