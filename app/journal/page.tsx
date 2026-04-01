@@ -46,6 +46,7 @@ function JournalPageContent() {
   const [submittedDailyByDay, setSubmittedDailyByDay] = useState<boolean[]>(Array.from({ length: 7 }, () => false));
   const [submittedWeighIn, setSubmittedWeighIn] = useState(false);
   const [submittedReflection, setSubmittedReflection] = useState(false);
+  const creatorCompanyId = process.env.NEXT_PUBLIC_WHOP_COMPANY_ID;
 
   useEffect(() => {
     async function fetchUserData() {
@@ -229,6 +230,16 @@ function JournalPageContent() {
     <div className="min-h-screen bg-zinc-900 text-zinc-100">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <WeekHeader userName={userName} weekStartISO={weekStartISO} />
+        {creatorCompanyId ? (
+          <div className="mt-4 mb-6">
+            <a
+              href={`/dashboard/${creatorCompanyId}`}
+              className="inline-flex items-center rounded-lg border border-emerald-300/55 bg-zinc-800/90 px-3 py-2 text-sm text-emerald-100 hover:bg-zinc-700 transition-colors"
+            >
+              Open Creator Dashboard
+            </a>
+          </div>
+        ) : null}
 
         <div className="space-y-8">
           <DailyRentSection
